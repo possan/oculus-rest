@@ -44,6 +44,8 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
 	sprintf(json, "{\"quat\":{\"x\":%1.7f,\"y\":%1.7f,\"z\":%1.7f,\"w\":%1.7f},\"euler\":{\"y\":%1.7f,\"p\":%1.7f,\"r\":%1.7f}}", q.x, q.y, q.z, q.w, yaw, pitch, roll);
 	printf("SEND: %s\n", json);
 	response = MHD_create_response_from_data(strlen(json), (void*) &json, MHD_NO, MHD_YES);
+	MHD_add_response_header (response, "Content-Type", "application/json");
+	MHD_add_response_header (response, "Access-Control-Allow-Origin", "*");
 	ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
 	MHD_destroy_response(response);
 	return ret;
