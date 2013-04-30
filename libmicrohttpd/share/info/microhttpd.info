@@ -1,0 +1,61 @@
+This is microhttpd.info, produced by makeinfo version 4.3 from
+microhttpd.texi.
+
+This manual documents GNU libmicrohttpd version 0.9.17, last updated
+25 November 2011. It is built upon the documentation in the header file
+`microhttpd.h'.
+
+Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.3 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, no Front-Cover Texts, and
+     no Back-Cover Texts.  A copy of the license is included in the
+     section entitled "GNU Free Documentation License".
+   GNU libmicrohttpd is a GNU package.
+INFO-DIR-SECTION GNU Libraries
+START-INFO-DIR-ENTRY
+* libmicrohttpd: (microhttpd).  Embedded HTTP server library.
+END-INFO-DIR-ENTRY
+
+
+Indirect:
+microhttpd.info-1: 874
+microhttpd.info-2: 49052
+microhttpd.info-3: 76519
+microhttpd.info-4: 124557
+
+Tag Table:
+(Indirect)
+Node: Top874
+Node: microhttpd-intro3062
+Node: microhttpd-const10018
+Node: microhttpd-struct28188
+Node: microhttpd-cb28955
+Node: microhttpd-init37548
+Node: microhttpd-inspect40695
+Node: microhttpd-requests42525
+Node: microhttpd-responses45537
+Node: microhttpd-response enqueue46584
+Ref: microhttpd-response enqueue-Footnote-148833
+Node: microhttpd-response create49052
+Node: microhttpd-response headers55065
+Node: microhttpd-response inspect56879
+Node: microhttpd-dauth58037
+Node: microhttpd-dauth basic59579
+Node: microhttpd-dauth digest60755
+Node: microhttpd-post65395
+Node: microhttpd-post api68346
+Node: microhttpd-info70851
+Node: microhttpd-info daemon71257
+Node: microhttpd-info conn73060
+Node: microhttpd-option conn75473
+Node: GNU-LGPL76519
+Node: GNU GPL with eCos Extension104665
+Node: GNU-FDL124557
+Node: Concept Index149667
+Node: Function and Data Index152985
+Node: Type Index155684
+
+End Tag Table

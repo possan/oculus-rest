@@ -1,0 +1,723 @@
+This is microhttpd.info, produced by makeinfo version 4.3 from
+microhttpd.texi.
+
+This manual documents GNU libmicrohttpd version 0.9.17, last updated
+25 November 2011. It is built upon the documentation in the header file
+`microhttpd.h'.
+
+Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.3 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, no Front-Cover Texts, and
+     no Back-Cover Texts.  A copy of the license is included in the
+     section entitled "GNU Free Documentation License".
+   GNU libmicrohttpd is a GNU package.
+INFO-DIR-SECTION GNU Libraries
+START-INFO-DIR-ENTRY
+* libmicrohttpd: (microhttpd).  Embedded HTTP server library.
+END-INFO-DIR-ENTRY
+
+
+File: microhttpd.info,  Node: microhttpd-response create,  Next: microhttpd-response headers,  Prev: microhttpd-response enqueue,  Up: microhttpd-responses
+
+Creating a response object
+==========================
+
+ - Function: struct MHD_Response * MHD_create_response_from_callback
+          (uint64_t size, size_t block_size, MHD_ContentReaderCallback
+          crc, void *crc_cls, MHD_ContentReaderFreeCallback crfc)
+     Create a response object.  The response object can be extended with
+     header information and then it can be used any number of times.
+
+    SIZE
+          size of the data portion of the response, `-1' for unknown;
+
+    BLOCK_SIZE
+          preferred block size for querying CRC (advisory only, MHD may
+          still call CRC using smaller chunks); this is essentially the
+          buffer size used for IO, clients should pick a value that is
+          appropriate for IO and memory performance requirements;
+
+    CRC
+          callback to use to obtain response data;
+
+    CRC_CLS
+          extra argument to CRC;
+
+    CRFC
+          callback to call to free CRC_CLS resources.
+
+     Return `NULL' on error (i.e. invalid arguments, out of memory).
+
+ - Function: struct MHD_Response * MHD_create_response_from_fd
+          (uint64_t size, int fd)
+     Create a response object.  The response object can be extended with
+     header information and then it can be used any number of times.
+
+    SIZE
+          size of the data portion of the response (should be smaller
+          or equal to the size of the file)
+
+    FD
+          file descriptor referring to a file on disk with the data;
+          will be closed when response is destroyed; note that 'fd'
+          must be an actual file descriptor (not a pipe or socket)
+          since MHD might use 'sendfile' or 'seek' on it.  The
+          descriptor should be in blocking-IO mode.
+
+     Return `NULL' on error (i.e. invalid arguments, out of memory).
+
+ - Function: struct MHD_Response *
+          MHD_create_response_from_fd_at_offset (uint64_t size, int fd,
+          off_t offset)
+     Create a response object.  The response object can be extended with
+     header information and then it can be used any number of times.
+     Note that you need to be a bit careful about `off_t' when writing
+     this code.  Depending on your platform, MHD is likely to have been
+     compiled with support for 64-bit files.  When you compile your own
+     application, you must make sure that `off_t' is also a 64-bit
+     value.  If not, your compiler may pass a 32-bit value as `off_t',
+     which will result in 32-bits of garbage.
+
+     If you use the autotools, use the `AC_SYS_LARGEFILE' autoconf
+     macro and make sure to include the generated `config.h' file
+     before `microhttpd.h' to avoid problems.  If you do not have a
+     build system and only want to run on a GNU/Linux system, you could
+     also use
+
+     #define _FILE_OFFSET_BITS 64
+     #include <sys/types.h>
+     #include <sys/stat.h>
+     #include <fcntl.h>
+     #include <microhttpd.h>
+      to ensure 64-bit `off_t'.  Note that if your operating system
+     does not support 64-bit files, MHD will be compiled with a 32-bit
+     `off_t' (in which case the above would be wrong...).
+
+    SIZE
+          size of the data portion of the response (number of bytes to
+          transmit from the file starting at offset).
+
+    FD
+          file descriptor referring to a file on disk with the data;
+          will be closed when response is destroyed; note that 'fd'
+          must be an actual file descriptor (not a pipe or socket)
+          since MHD might use 'sendfile' or 'seek' on it.    The
+          descriptor should be in blocking-IO mode.
+
+    OFFSET
+          offset to start reading from in the file
+
+     Return `NULL' on error (i.e. invalid arguments, out of memory).
+
+ - Function: struct MHD_Response * MHD_create_response_from_buffer
+          (size_t size, void *data, enum MHD_ResponseMemoryMode mode)
+     Create a response object.  The response object can be extended with
+     header information and then it can be used any number of times.
+
+    SIZE
+          size of the data portion of the response;
+
+    BUFFER
+          the data itself;
+
+    MODE
+          memory management options for buffer; use
+          MHD_RESPMEM_PERSISTENT if the buffer is static/global memory,
+          use MHD_RESPMEM_MUST_FREE if the buffer is heap-allocated and
+          should be freed by MHD and MHD_RESPMEM_MUST_COPY if the
+          buffer is in transient memory (i.e. on the stack) and must be
+          copied by MHD;
+
+     Return `NULL' on error (i.e. invalid arguments, out of memory).
+
+ - Function: struct MHD_Response * MHD_create_response_from_data
+          (size_t size, void *data, int must_free, int must_copy)
+     Create a response object.  The response object can be extended with
+     header information and then it can be used any number of times.
+     This function is deprecated, use `MHD_create_response_from_buffer'
+     instead.
+
+    SIZE
+          size of the data portion of the response;
+
+    DATA
+          the data itself;
+
+    MUST_FREE
+          if true: MHD should free data when done;
+
+    MUST_COPY
+          if true: MHD allocates a block of memory and use it to make a
+          copy of DATA embedded in the returned `MHD_Response'
+          structure; handling of the embedded memory is responsibility
+          of MHD; DATA can be released anytime after this call returns.
+
+     Return `NULL' on error (i.e. invalid arguments, out of memory).
+
+   Example: create a response from a statically allocated string:
+
+     const char * data = "<html><body><p>Error!</p></body></html>";
+     
+     struct MHD_Connection * connection = ...;
+     struct MHD_Response *   response;
+     
+     response = MHD_create_response_from_buffer (strlen(data), data,
+                                                 MHD_RESPMEM_PERSISTENT);
+     MHD_queue_response(connection, 404, response);
+     MHD_destroy_response(response);
+
+
+File: microhttpd.info,  Node: microhttpd-response headers,  Next: microhttpd-response inspect,  Prev: microhttpd-response create,  Up: microhttpd-responses
+
+Adding headers to a response
+============================
+
+ - Function: int MHD_add_response_header (struct MHD_Response
+          *response, const char *header, const char *content)
+     Add a header line to the response. The strings referenced by
+     HEADER and CONTENT must be zero-terminated and they are duplicated
+     into memory blocks embedded in RESPONSE.
+
+     Notice that the strings must not hold newlines, carriage returns
+     or tab chars.
+
+     Return `MHD_NO' on error (i.e. invalid header or content format or
+     memory allocation error).
+
+ - Function: int MHD_add_response_footer (struct MHD_Response
+          *response, const char *footer, const char *content)
+     Add a footer line to the response. The strings referenced by
+     FOOTER and CONTENT must be zero-terminated and they are duplicated
+     into memory blocks embedded in RESPONSE.
+
+     Notice that the strings must not hold newlines, carriage returns
+     or tab chars.  You can add response footers at any time before
+     signalling the end of the response to MHD (not just before calling
+     'MHD_queue_response').  Footers are useful for adding
+     cryptographic checksums to the reply or to signal errors
+     encountered during data generation.  This call was introduced in
+     MHD 0.9.3.
+
+     Return `MHD_NO' on error (i.e. invalid header or content format or
+     memory allocation error).
+
+ - Function: int MHD_del_response_header (struct MHD_Response
+          *response, const char *header, const char *content)
+     Delete a header (or footer) line from the response.  Return
+     `MHD_NO' on error (arguments are invalid or no such header known).
+
+
+File: microhttpd.info,  Node: microhttpd-response inspect,  Prev: microhttpd-response headers,  Up: microhttpd-responses
+
+Inspecting a response object
+============================
+
+ - Function: int MHD_get_response_headers (struct MHD_Response
+          *response, MHD_KeyValueIterator iterator, void *iterator_cls)
+     Get all of the headers added to a response.
+
+     Invoke the ITERATOR callback for each header in the response,
+     using ITERATOR_CLS as first argument. Return number of entries
+     iterated over.  ITERATOR can be `NULL': in this case the function
+     just counts headers.
+
+     ITERATOR should not modify the its key and value arguments, unless
+     we know what we are doing.
+
+ - Function: const char * MHD_get_response_header (struct MHD_Response
+          *response, const char *key)
+     Find and return a pointer to the value of a particular header from
+     the response.  KEY must reference a zero-terminated string
+     representing the header to look for. The search is case sensitive.
+     Return `NULL' if header does not exist or KEY is `NULL'.
+
+     We should not modify the value, unless we know what we are doing.
+
+
+File: microhttpd.info,  Node: microhttpd-dauth,  Next: microhttpd-post,  Prev: microhttpd-responses,  Up: Top
+
+Utilizing Authentication
+************************
+
+MHD support three types of client authentication.
+
+   Basic authentication uses a simple authentication method based on
+BASE64 algorithm. Username and password are exchanged in clear between
+the client and the server, so this method must only be used for
+non-sensitive content or when the session is protected with https.
+When using basic authentication MHD will have access to the clear
+password, possibly allowing to create a chained authentication toward
+an external authentication server.
+
+   Digest authentication uses a one-way authentication method based on
+MD5 hash algorithm. Only the hash will transit over the network, hence
+protecting the user password. The nonce will prevent replay attacks.
+This method is appropriate for general use, especially when https is
+not used to encrypt the session.
+
+   Client certificate authentication uses a X.509 certificate from the
+client. This is the strongest authentication mechanism but it requires
+the use of HTTPS. Client certificate authentication can be used
+simultaneously with Basic or Digest Authentication in order to provide
+a two levels authentication (like for instance separate machine and
+user authentication).  A code example for using client certificates is
+presented in the MHD tutorial.
+
+* Menu:
+
+* microhttpd-dauth basic:: Using Basic Authentication.
+* microhttpd-dauth digest:: Using Digest Authentication.
+
+
+File: microhttpd.info,  Node: microhttpd-dauth basic,  Next: microhttpd-dauth digest,  Up: microhttpd-dauth
+
+Using Basic Authentication
+==========================
+
+ - Function: char * MHD_basic_auth_get_username_password (struct
+          MHD_Connection *connection, char** password)
+     Get the username and password from the basic authorization header
+     sent by the client.  Return `NULL' if no username could be found,
+     a pointer to the username if found.  If returned value is not
+     `NULL', the value must be `free()''ed.
+
+     PASSWORD reference a buffer to store the password. It can be
+     `NULL'.  If returned value is not `NULL', the value must be
+     `free()''ed.
+
+ - Function: int MHD_queue_basic_auth_fail_response (struct
+          MHD_Connection *connection, const char *realm, struct
+          MHD_Response *response)
+     Queues a response to request basic authentication from the client.
+     Return `MHD_YES' if successful, otherwise `MHD_NO'.
+
+     REALM must reference to a zero-terminated string representing the
+     realm.
+
+     RESPONSE a response structure to specify what shall be presented
+     to the client with a 401 HTTP status.
+
+
+File: microhttpd.info,  Node: microhttpd-dauth digest,  Prev: microhttpd-dauth basic,  Up: microhttpd-dauth
+
+Using Digest Authentication
+===========================
+
+ - Function: char * MHD_digest_auth_get_username (struct MHD_Connection
+          *connection)
+     Find and return a pointer to the username value from the request
+     header.  Return `NULL' if the value is not found or header does
+     not exist.  If returned value is not `NULL', the value must be
+     `free()''ed.
+
+ - Function: int MHD_digest_auth_check (struct MHD_Connection
+          *connection, const char *realm, const char *username, const
+          char *password, unsigned int nonce_timeout)
+     Checks if the provided values in the WWW-Authenticate header are
+     valid and sound according to RFC2716. If valid return `MHD_YES',
+     otherwise return `MHD_NO'.
+
+     REALM must reference to a zero-terminated string representing the
+     realm.
+
+     USERNAME must reference to a zero-terminated string representing
+     the username, it is usually the returned value from
+     MHD_digest_auth_get_username.
+
+     PASSWORD must reference to a zero-terminated string representing
+     the password, most probably it will be the result of a lookup of
+     the username against a local database.
+
+     NONCE_TIMEOUT is the amount of time in seconds for a nonce to be
+     invalid.  Most of the time it is sound to specify 300 seconds as
+     its values.
+
+ - Function: int MHD_queue_auth_fail_response (struct MHD_Connection
+          *connection, const char *realm, const char *opaque, struct
+          MHD_Response *response, int signal_stale)
+     Queues a response to request authentication from the client,
+     return `MHD_YES' if successful, otherwise `MHD_NO'.
+
+     REALM must reference to a zero-terminated string representing the
+     realm.
+
+     OPAQUE must reference to a zero-terminated string representing a
+     value that gets passed to the client and expected to be passed
+     again to the server as-is. This value can be a hexadecimal or
+     base64 string.
+
+     RESPONSE a response structure to specify what shall be presented
+     to the client with a 401 HTTP status.
+
+     SIGNAL_STALE a value that signals "stale=true" in the response
+     header to indicate the invalidity of the nonce and no need to ask
+     for authentication parameters and only a new nonce gets generated.
+     `MHD_YES' to generate a new nonce, `MHD_NO' to ask for
+     authentication parameters.
+
+   Example: handling digest authentication requests and responses.
+
+     #define PAGE "<html><head><title>libmicrohttpd demo</title></head><body>Access granted</body></html>"
+     #define DENIED "<html><head><title>libmicrohttpd demo</title></head><body>Access denied</body></html>"
+     #define OPAQUE "11733b200778ce33060f31c9af70a870ba96ddd4"
+     
+     static int
+     ahc_echo (void *cls,
+               struct MHD_Connection *connection,
+               const char *url,
+               const char *method,
+               const char *version,
+               const char *upload_data, size_t *upload_data_size, void **ptr)
+     {
+       struct MHD_Response *response;
+       char *username;
+       const char *password = "testpass";
+       const char *realm = "test@example.com";
+       int ret;
+     
+       username = MHD_digest_auth_get_username(connection);
+       if (username == NULL)
+         {
+           response = MHD_create_response_from_buffer(strlen (DENIED),
+     					         DENIED,
+     					         MHD_RESPMEM_PERSISTENT);
+           ret = MHD_queue_auth_fail_response(connection, realm,
+     					 OPAQUE,
+     					 response,
+     					 MHD_NO);
+           MHD_destroy_response(response);
+           return ret;
+         }
+       ret = MHD_digest_auth_check(connection, realm,
+     			      username,
+     			      password,
+     			      300);
+       free(username);
+       if ( (ret == MHD_INVALID_NONCE) ||
+            (ret == MHD_NO) )
+         {
+           response = MHD_create_response_from_buffer(strlen (DENIED),
+     					         DENIED,
+     					         MHD_RESPMEM_PERSISTENT);
+           if (NULL == response)
+     	return MHD_NO;
+           ret = MHD_queue_auth_fail_response(connection, realm,
+     					 OPAQUE,
+     					 response,
+     					 (ret == MHD_INVALID_NONCE) ? MHD_YES : MHD_NO);
+           MHD_destroy_response(response);
+           return ret;
+         }
+       response = MHD_create_response_from_buffer (strlen(PAGE), PAGE,
+      					      MHD_RESPMEM_PERSISTENT);
+       ret = MHD_queue_response(connection, MHD_HTTP_OK, response);
+       MHD_destroy_response(response);
+       return ret;
+     }
+
+
+File: microhttpd.info,  Node: microhttpd-post,  Next: microhttpd-info,  Prev: microhttpd-dauth,  Up: Top
+
+Adding a `POST' processor
+*************************
+
+* Menu:
+
+* microhttpd-post api::         Programming interface for the
+                                `POST' processor.
+
+MHD provides the post processor API to make it easier for applications
+to parse the data of a client's `POST' request: the
+`MHD_AccessHandlerCallback' will be invoked multiple times to process
+data as it arrives; at each invocation a new chunk of data must be
+processed. The arguments UPLOAD_DATA and UPLOAD_DATA_SIZE are used to
+reference the chunk of data.
+
+   When `MHD_AccessHandlerCallback' is invoked for a new connection:
+its `*CON_CLS' argument is set to `NULL'. When `POST' data comes in the
+upload buffer it is *mandatory* to use the CON_CLS to store a reference
+to per-connection data.  The fact that the pointer was initially `NULL'
+can be used to detect that this is a new request.
+
+   One method to detect that a new connection was established is to set
+`*con_cls' to an unused integer:
+
+     int
+     access_handler (void *cls,
+                     struct MHD_Connection * connection,
+                     const char *url,
+                     const char *method, const char *version,
+                     const char *upload_data, size_t *upload_data_size,
+                     void **con_cls)
+     {
+       static int old_connection_marker;
+       int new_connection = (MYNULL == *con_cls);
+     
+       if (new_connection)
+         {
+           /* new connection with POST */
+           *con_cls = &old_connection_marker;
+         }
+     
+       ...
+     }
+
+In contrast to the previous example, for `POST' requests in particular,
+it is more common to use the value of `*con_cls' to keep track of
+actual state used during processing, such as the post processor (or a
+struct containing a post processor):
+
+     int
+     access_handler (void *cls,
+                     struct MHD_Connection * connection,
+                     const char *url,
+                     const char *method, const char *version,
+                     const char *upload_data, size_t *upload_data_size,
+                     void **con_cls)
+     {
+       struct MHD_PostProcessor * pp = *con_cls;
+     
+       if (pp == NULL)
+         {
+           pp = MHD_create_post_processor(connection, ...);
+           *con_cls = pp;
+           return MHD_YES;
+         }
+       if (*upload_data_size)
+         {
+           MHD_post_process(pp, upload_data, *upload_data_size);
+           *upload_data_size = 0;
+           return MHD_YES;
+         }
+       else
+         {
+           MHD_destroy_post_processor(pp);
+           return MHD_queue_response(...);
+         }
+     }
+
+   Note that the callback from `MHD_OPTION_NOTIFY_COMPLETED' should be
+used to destroy the post processor.  This cannot be done inside of the
+access handler since the connection may not always terminate normally.
+
+
+File: microhttpd.info,  Node: microhttpd-post api,  Up: microhttpd-post
+
+Programming interface for the `POST' processor
+==============================================
+
+ - Function: struct MHD_PostProcessor * MHD_create_post_processor
+          (struct MHD_Connection *connection, size_t buffer_size,
+          MHD_PostDataIterator iterator, void *iterator_cls)
+     Create a PostProcessor.  A PostProcessor can be used to
+     (incrementally) parse the data portion of a `POST' request.
+
+    CONNECTION
+          the connection on which the `POST' is happening (used to
+          determine the `POST' format);
+
+    BUFFER_SIZE
+          maximum number of bytes to use for internal buffering (used
+          only for the parsing, specifically the parsing of the keys).
+          A tiny value (256-1024) should be sufficient; do *NOT* use a
+          value smaller than 256;
+
+    ITERATOR
+          iterator to be called with the parsed data; must *NOT* be
+          `NULL';
+
+    ITERATOR_CLS
+          custom value to be used as first argument to ITERATOR.
+
+     Return `NULL' on error (out of memory, unsupported encoding),
+     otherwise a PP handle.
+
+ - Function: int MHD_post_process (struct MHD_PostProcessor *pp, const
+          char *post_data, size_t post_data_len)
+     Parse and process `POST' data.  Call this function when `POST'
+     data is available (usually during an `MHD_AccessHandlerCallback')
+     with the UPLOAD_DATA and UPLOAD_DATA_SIZE.  Whenever possible,
+     this will then cause calls to the
+     `MHD_IncrementalKeyValueIterator'.
+
+    PP
+          the post processor;
+
+    POST_DATA
+          POST_DATA_LEN bytes of `POST' data;
+
+    POST_DATA_LEN
+          length of POST_DATA.
+
+     Return `MHD_YES' on success, `MHD_NO' on error (out-of-memory,
+     iterator aborted, parse error).
+
+ - Function: int MHD_destroy_post_processor (struct MHD_PostProcessor
+          *pp)
+     Release PostProcessor resources.  After this function is being
+     called, the PostProcessor is guaranteed to no longer call its
+     iterator.  There is no special call to the iterator to indicate
+     the end of the post processing stream.  After destroying the
+     PostProcessor, the programmer should perform any necessary work to
+     complete the processing of the iterator.
+
+     Return `MHD_YES' if processing completed nicely, `MHD_NO' if there
+     were spurious characters or formatting problems with the post
+     request.  It is common to ignore the return value of this function.
+
+
+
+File: microhttpd.info,  Node: microhttpd-info,  Next: GNU-LGPL,  Prev: microhttpd-post,  Up: Top
+
+Obtaining and modifying status information.
+*******************************************
+
+* Menu:
+
+* microhttpd-info daemon::        State information about an MHD daemon
+* microhttpd-info conn::          State information about a connection
+* microhttpd-option conn::        Modify per-connection options
+
+
+File: microhttpd.info,  Node: microhttpd-info daemon,  Next: microhttpd-info conn,  Up: microhttpd-info
+
+Obtaining state information about an MHD daemon
+===============================================
+
+ - Function: const union MHD_DaemonInfo * MHD_get_daemon_info (struct
+          MHD_Daemon *daemon, enum MHD_DaemonInfoType infoType, ...)
+     Obtain information about the given daemon.  This function is
+     currently not fully implemented.
+
+    DAEMON
+          the daemon about which information is desired;
+
+    INFOTYPE
+          type of information that is desired
+
+    ...
+          additional arguments about the desired information (depending
+          on infoType)
+
+     Returns a union with the respective member (depending on infoType)
+     set to the desired information), or NULL in case the desired
+     information is not available or applicable.
+
+ - Enumeration: MHD_DaemonInfoType
+     Values of this enum are used to specify what information about a
+     daemon is desired.
+    `MHD_DAEMON_INFO_KEY_SIZE'
+          Request information about the key size for a particular cipher
+          algorithm.  The cipher algorithm should be passed as an extra
+          argument (of type 'enum MHD_GNUTLS_CipherAlgorithm').
+
+    `MHD_DAEMON_INFO_MAC_KEY_SIZE'
+          Request information about the key size for a particular cipher
+          algorithm.  The cipher algorithm should be passed as an extra
+          argument (of type 'enum MHD_GNUTLS_HashAlgorithm').
+
+    `MHD_DAEMON_INFO_LISTEN_FD'
+          Request the file-descriptor number that MHD is using to
+          listen to the server socket.  This can be useful if no port
+          was specified and a client needs to learn what port is
+          actually being used by MHD.  No extra arguments should be
+          passed.
+
+
+
+File: microhttpd.info,  Node: microhttpd-info conn,  Next: microhttpd-option conn,  Prev: microhttpd-info daemon,  Up: microhttpd-info
+
+Obtaining state information about a connection
+==============================================
+
+ - Function: const union MHD_ConnectionInfo * MHD_get_connection_info
+          (struct MHD_Connection *daemon, enum MHD_ConnectionInfoType
+          infoType, ...)
+     Obtain information about the given connection.
+
+    CONNECTION
+          the connection about which information is desired;
+
+    INFOTYPE
+          type of information that is desired
+
+    ...
+          additional arguments about the desired information (depending
+          on infoType)
+
+     Returns a union with the respective member (depending on infoType)
+     set to the desired information), or NULL in case the desired
+     information is not available or applicable.
+
+ - Enumeration: MHD_ConnectionInfoType
+     Values of this enum are used to specify what information about a
+     connection is desired.
+
+    `MHD_CONNECTION_INFO_CIPHER_ALGO'
+          What cipher algorithm is being used (HTTPS connections only).
+          Takes no extra arguments.  NULL is returned for non-HTTPS
+          connections.
+
+    `MHD_CONNECTION_INFO_PROTOCOL,'
+          Takes no extra arguments.   Allows finding out the TLS/SSL
+          protocol used (HTTPS connections only).  NULL is returned for
+          non-HTTPS connections.
+
+    `MHD_CONNECTION_INFO_CLIENT_ADDRESS'
+          Returns information about the address of the client.  Returns
+          essentially a `struct sockaddr **' (since the API returns a
+          `union MHD_ConnectionInfo *' and that union contains a
+          `struct sockaddr *').
+
+    `MHD_CONNECTION_INFO_GNUTLS_SESSION,'
+          Takes no extra arguments.  Allows access to the underlying
+          GNUtls session, including access to the underlying GNUtls
+          client certificate (HTTPS connections only).  Takes no extra
+          arguments.  NULL is returned for non-HTTPS connections.
+
+    `MHD_CONNECTION_INFO_GNUTLS_CLIENT_CERT,'
+          Dysfunctional (never implemented, deprecated).  Use
+          MHD_CONNECTION_INFO_GNUTLS_SESSION to get the
+          `gnutls_session_t' and then call
+          `gnutls_certificate_get_peers()'.
+
+    `MHD_CONNECTION_INFO_DAEMON'
+          Returns information about `struct MHD_Daemon' which manages
+          this connection.
+
+
+
+File: microhttpd.info,  Node: microhttpd-option conn,  Prev: microhttpd-info conn,  Up: microhttpd-info
+
+Setting custom options for an individual connection
+===================================================
+
+ - Function: int MHD_set_connection_option (struct MHD_Connection
+          *daemon, enum MHD_CONNECTION_OPTION option, ...)
+     Set a custom option for the given connection.
+
+    CONNECTION
+          the connection for which an option should be set or modified;
+
+    OPTION
+          option to set
+
+    ...
+          additional arguments for the option (depending on option)
+
+     Returns `MHD_YES' on success, `MHD_NO' for errors (i.e. option
+     argument invalid or option unknown).
+
+ - Enumeration: MHD_CONNECTION_OPTION
+     Values of this enum are used to specify which option for a
+     connection should be changed.
+
+    `MHD_CONNECTION_OPTION_TIMEOUT'
+          Set a custom timeout for the given connection.   Specified as
+          the number of seconds, given as an `unsigned int'.  Use zero
+          for no timeout.
+
+

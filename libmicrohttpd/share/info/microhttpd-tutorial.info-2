@@ -1,0 +1,1248 @@
+This is microhttpd-tutorial.info, produced by makeinfo version 4.3 from
+microhttpd-tutorial.texi.
+
+INFO-DIR-SECTION GNU Libraries
+START-INFO-DIR-ENTRY
+* libmicrohttpdtutorial: (microhttpd).  A tutorial for GNU libmicrohttpd.
+END-INFO-DIR-ENTRY
+
+
+File: microhttpd-tutorial.info,  Node: Improved processing of POST data,  Next: Session management,  Prev: Processing POST data,  Up: Top
+
+Improved processing of POST data
+********************************
+
+   The previous chapter introduced a way to upload data to the server,
+but the developed example program has some shortcomings, such as not
+being able to handle larger chunks of data. In this chapter, we are
+going to discuss a more advanced server program that allows clients to
+upload a file in order to have it stored on the server's filesystem.
+The server shall also watch and limit the number of clients
+concurrently uploading, responding with a proper busy message if
+necessary.
+
+Prepared answers
+================
+
+   We choose to operate the server with the `SELECT_INTERNALLY' method.
+This makes it easier to synchronize the global states at the cost of
+possible delays for other connections if the processing of a request is
+too slow. One of these variables that needs to be shared for all
+connections is the total number of clients that are uploading.
+
+
+#define MAXCLIENTS      2
+static unsigned int    nr_of_uploading_clients = 0;
+
+If there are too many clients uploading, we want the server to respond
+to all requests with a busy message.
+
+const char* busypage = 
+  "<html><body>This server is busy, please try again later.</body></html>";
+
+Otherwise, the server will send a _form_ that informs the user of the
+current number of uploading clients, and ask her to pick a file on her
+local filesystem which is to be uploaded.
+
+const char* askpage = "<html><body>\n\
+                       Upload a file, please!<br>\n\
+                       There are %u clients uploading at the moment.<br>\n\
+                       <form action=\"/filepost\" method=\"post\" \
+                         enctype=\"multipart/form-data\">\n\
+                       <input name=\"file\" type=\"file\">\n\
+                       <input type=\"submit\" value=\" Send \"></form>\n\
+                       </body></html>";
+
+If the upload has succeeded, the server will respond with a message
+saying so.
+
+const char* completepage = "<html><body>The upload has been completed.</body></html>";
+
+We want the server to report internal errors, such as memory shortage
+or file access problems, adequately.
+
+const char* servererrorpage 
+  = "<html><body>An internal server error has occured.</body></html>";
+const char* fileexistspage
+  = "<html><body>This file already exists.</body></html>";
+
+It would be tolerable to send all these responses undifferentiated with
+a `200 HTTP_OK' status code but in order to improve the `HTTP'
+conformance of our server a bit, we extend the `send_page' function so
+that it accepts individual status codes.
+
+
+static int 
+send_page (struct MHD_Connection *connection, 
+	   const char* page, int status_code)
+{
+  int ret;
+  struct MHD_Response *response;
+  
+  response = MHD_create_response_from_buffer (strlen (page), (void*) page, 
+  	     				      MHD_RESPMEM_MUST_COPY);
+  if (!response) return MHD_NO;
+ 
+  ret = MHD_queue_response (connection, status_code, response);
+  MHD_destroy_response (response);
+
+  return ret;
+}
+
+Note how we ask _MHD_ to make its own copy of the message data. The
+reason behind this will become clear later.
+
+Connection cycle
+================
+
+   The decision whether the server is busy or not is made right at the
+beginning of the connection. To do that at this stage is especially
+important for _POST_ requests because if no response is queued at this
+point, and `MHD_YES' returned, _MHD_ will not sent any queued messages
+until a postprocessor has been created and the post iterator is called
+at least once.
+
+
+static int 
+answer_to_connection (void *cls, struct MHD_Connection *connection, 
+		      const char *url, 
+                      const char *method, const char *version, 
+		      const char *upload_data, 
+                      size_t *upload_data_size, void **con_cls)
+{
+  if (NULL == *con_cls) 
+    {
+      struct connection_info_struct *con_info;
+
+      if (nr_of_uploading_clients >= MAXCLIENTS) 
+        return send_page(connection, busypage, MHD_HTTP_SERVICE_UNAVAILABLE);
+
+If the server is not busy, the `connection_info' structure is
+initialized as usual, with the addition of a filepointer for each
+connection.
+
+
+      con_info = malloc (sizeof (struct connection_info_struct));
+      if (NULL == con_info) return MHD_NO;
+      con_info->fp = 0;
+
+      if (0 == strcmp (method, "POST")) 
+        {  
+          ...
+        } 
+      else con_info->connectiontype = GET;
+
+      *con_cls = (void*) con_info;
+ 
+      return MHD_YES;
+    }
+
+For _POST_ requests, the postprocessor is created and we register a new
+uploading client. From this point on, there are many possible places
+for errors to occur that make it necessary to interrupt the uploading
+process. We need a means of having the proper response message ready at
+all times.  Therefore, the `connection_info' structure is extended to
+hold the most current response message so that whenever a response is
+sent, the client will get the most informative message. Here, the
+structure is initialized to "no error".
+
+      if (0 == strcmp (method, "POST")) 
+        {  
+          con_info->postprocessor 
+	    = MHD_create_post_processor (connection, POSTBUFFERSIZE, 
+                                         iterate_post, (void*) con_info);   
+
+          if (NULL == con_info->postprocessor) 
+            {
+              free (con_info); 
+              return MHD_NO;
+            }
+
+          nr_of_uploading_clients++;
+          
+          con_info->connectiontype = POST;
+          con_info->answercode = MHD_HTTP_OK;
+          con_info->answerstring = completepage;
+        } 
+      else con_info->connectiontype = GET;
+
+If the connection handler is called for the second time, _GET_ requests
+will be answered with the _form_. We can keep the buffer under function
+scope, because we asked _MHD_ to make its own copy of it for as long as
+it is needed.
+
+  if (0 == strcmp (method, "GET")) 
+    {
+      int ret;
+      char buffer[1024];
+        
+      sprintf (buffer, askpage, nr_of_uploading_clients);
+      return send_page (connection, buffer, MHD_HTTP_OK);     
+    }
+
+The rest of the `answer_to_connection' function is very similar to the
+`simplepost.c' example, except the more flexible content of the
+responses. The _POST_ data is processed until there is none left and
+the execution falls through to return an error page if the connection
+constituted no expected request method.
+
+  if (0 == strcmp (method, "POST")) 
+    {
+      struct connection_info_struct *con_info = *con_cls;
+       
+      if (0 != *upload_data_size) 
+        { 
+          MHD_post_process (con_info->postprocessor,
+	                    upload_data, *upload_data_size);
+          *upload_data_size = 0;
+          
+          return MHD_YES;
+        } 
+      else 
+        return send_page (connection, con_info->answerstring, 
+	       		  con_info->answercode);
+    } 
+
+  return send_page(connection, errorpage, MHD_HTTP_BAD_REQUEST);
+}
+
+Storing to data
+===============
+
+Unlike the `simplepost.c' example, here it is to be expected that post
+iterator will be called several times now. This means that for any
+given connection (there might be several concurrent of them) the posted
+data has to be written to the correct file. That is why we store a file
+handle in every `connection_info', so that the it is preserved between
+successive iterations.
+
+static int 
+iterate_post (void *coninfo_cls, enum MHD_ValueKind kind, 
+	      const char *key,
+	      const char *filename, const char *content_type,
+              const char *transfer_encoding, const char *data, 
+	      uint64_t off, size_t size)
+{
+  struct connection_info_struct *con_info = coninfo_cls;
+
+Because the following actions depend heavily on correct file
+processing, which might be error prone, we default to reporting
+internal errors in case anything will go wrong.
+
+
+con_info->answerstring = servererrorpage;
+con_info->answercode = MHD_HTTP_INTERNAL_SERVER_ERROR;
+
+In the "askpage" _form_, we told the client to label its post data with
+the "file" key. Anything else would be an error.
+
+
+  if (0 != strcmp (key, "file")) return MHD_NO;
+
+If the iterator is called for the first time, no file will have been
+opened yet. The `filename' string contains the name of the file
+(without any paths) the user selected on his system. We want to take
+this as the name the file will be stored on the server and make sure no
+file of that name exists (or is being uploaded) before we create one
+(note that the code below technically contains a race between the two
+"fopen" calls, but we will overlook this for portability sake).
+
+  if (!con_info->fp)
+    {
+      if (NULL != (fp = fopen (filename, "rb")) )
+        {
+          fclose (fp);
+          con_info->answerstring = fileexistspage;
+          con_info->answercode = MHD_HTTP_FORBIDDEN;
+          return MHD_NO;
+        }
+      
+      con_info->fp = fopen (filename, "ab");
+      if (!con_info->fp) return MHD_NO;    
+    }
+
+Occasionally, the iterator function will be called even when there are
+0 new bytes to process. The server only needs to write data to the file
+if there is some.
+
+if (size > 0) 
+    {  
+      if (!fwrite (data, size, sizeof(char), con_info->fp))
+        return MHD_NO;
+    }
+
+If this point has been reached, everything worked well for this
+iteration and the response can be set to success again. If the upload
+has finished, this iterator function will not be called again.
+
+  con_info->answerstring = completepage;
+  con_info->answercode = MHD_HTTP_OK;
+
+  return MHD_YES;
+}
+
+The new client was registered when the postprocessor was created.
+Likewise, we unregister the client on destroying the postprocessor when
+the request is completed.
+
+void request_completed (void *cls, struct MHD_Connection *connection, 
+     		        void **con_cls,
+                        enum MHD_RequestTerminationCode toe)
+{
+  struct connection_info_struct *con_info = *con_cls;
+
+  if (NULL == con_info) return;
+
+  if (con_info->connectiontype == POST)
+    {
+      if (NULL != con_info->postprocessor) 
+        {
+          MHD_destroy_post_processor (con_info->postprocessor); 
+          nr_of_uploading_clients--;
+        }
+
+      if (con_info->fp) fclose (con_info->fp); 
+    }
+
+  free (con_info);
+  *con_cls = NULL;      
+}
+
+This is essentially the whole example `largepost.c'.
+
+Remarks
+=======
+
+   Now that the clients are able to create files on the server,
+security aspects are becoming even more important than before. Aside
+from proper client authentication, the server should always make sure
+explicitly that no files will be created outside of a dedicated upload
+directory.  In particular, filenames must be checked to not contain
+strings like "../".
+
+
+File: microhttpd-tutorial.info,  Node: Session management,  Next: Adding a layer of security,  Prev: Improved processing of POST data,  Up: Top
+
+Session management
+******************
+
+   This chapter discusses how one should manage sessions, that is,
+share state between multiple HTTP requests from the same user.  We use
+a simple example where the user submits multiple forms and the server
+is supposed to accumulate state from all of these forms.  Naturally, as
+this is a network protocol, our session mechanism must support having
+many users with many concurrent sessions at the same time.
+
+   In order to track users, we use a simple session cookie.  A session
+cookie expires when the user closes the browser.  Changing from session
+cookies to persistent cookies only requires adding an expiration time
+to the cookie.  The server creates a fresh session cookie whenever a
+request without a cookie is received, or if the supplied session cookie
+is not known to the server.
+
+Looking up the cookie
+=====================
+
+   Since MHD parses the HTTP cookie header for us, looking up an
+existing cookie is straightforward:
+
+
+FIXME.
+
+   Here, FIXME is the name we chose for our session cookie.
+
+Setting the cookie header
+=========================
+
+   MHD requires the user to provide the full cookie format string in
+order to set cookies.  In order to generate a unique cookie, our
+example creates a random 64-character text string to be used as the
+value of the cookie:
+
+
+FIXME.
+
+   Given this cookie value, we can then set the cookie header in our
+HTTP response as follows:
+
+
+FIXME.
+
+Remark: Session expiration
+==========================
+
+   It is of course possible that clients stop their interaction with the
+server at any time.  In order to avoid using too much storage, the
+server must thus discard inactive sessions at some point.  Our example
+implements this by discarding inactive sessions after a certain amount
+of time.  Alternatively, the implementation may limit the total number
+of active sessions.  Which bounds are used for idle sessions or the
+total number of sessions obviously depends largely on the type of the
+application and available server resources.
+
+Example code
+============
+
+   A sample application implementing a website with multiple forms
+(which are dynamically created using values from previous POST requests
+from the same session) is available as the example `sessions.c'.
+
+   Note that the example uses a simple, $O(n)$ linked list traversal to
+look up sessions and to expire old sessions.  Using a hash table and a
+heap would be more appropriate if a large number of concurrent sessions
+is expected.
+
+Remarks
+=======
+
+   Naturally, it is quite conceivable to store session data in a
+database instead of in memory.  Still, having mechanisms to expire data
+associated with long-time idle sessions (where the business process has
+still not finished) is likely a good idea.
+
+
+File: microhttpd-tutorial.info,  Node: Adding a layer of security,  Next: Bibliography,  Prev: Session management,  Up: Top
+
+Adding a layer of security
+**************************
+
+   We left the basic authentication chapter with the unsatisfactory
+conclusion that any traffic, including the credentials, could be
+intercepted by anyone between the browser client and the server.
+Protecting the data while it is sent over unsecured lines will be the
+goal of this chapter.
+
+   Since version 0.4, the _MHD_ library includes support for encrypting
+the traffic by employing SSL/TSL. If _GNU libmicrohttpd_ has been
+configured to support these, encryption and decryption can be applied
+transparently on the data being sent, with only minimal changes to the
+actual source code of the example.
+
+Preparation
+===========
+
+   First, a private key for the server will be generated. With this
+key, the server will later be able to authenticate itself to the
+client--preventing anyone else from stealing the password by faking its
+identity. The _OpenSSL_ suite, which is available on many operating
+systems, can generate such a key. For the scope of this tutorial, we
+will be content with a 1024 bit key:
+
+> openssl genrsa -out server.key 1024
+
+In addition to the key, a certificate describing the server in human
+readable tokens is also needed. This certificate will be attested with
+our aforementioned key. In this way, we obtain a self-signed
+certificate, valid for one year.
+
+
+> openssl req -days 365 -out server.pem -new -x509 -key server.key
+
+To avoid unnecessary error messages in the browser, the certificate
+needs to have a name that matches the _URI_, for example, "localhost"
+or the domain.  If you plan to have a publicly reachable server, you
+will need to ask a trusted third party, called _Certificate Authority_,
+or _CA_, to attest the certificate for you. This way, any visitor can
+make sure the server's identity is real.
+
+   Whether the server's certificate is signed by us or a third party,
+once it has been accepted by the client, both sides will be
+communicating over encrypted channels. From this point on, it is the
+client's turn to authenticate itself. But this has already been
+implemented in the basic authentication scheme.
+
+Changing the source code
+========================
+
+   We merely have to extend the server program so that it loads the two
+files into memory,
+
+
+int
+main ()
+{
+  struct MHD_Daemon *daemon;
+  char *key_pem;
+  char *cert_pem;
+
+  key_pem = load_file (SERVERKEYFILE);
+  cert_pem = load_file (SERVERCERTFILE);
+
+  if ((key_pem == NULL) || (cert_pem == NULL))
+  {
+    printf ("The key/certificate files could not be read.\n");
+    return 1;
+  }
+
+and then we point the _MHD_ daemon to it upon initalization.
+
+
+  daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL, 
+  	   		     PORT, NULL, NULL,
+                             &answer_to_connection, NULL, 
+                             MHD_OPTION_HTTPS_MEM_KEY, key_pem,
+                             MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
+                             MHD_OPTION_END);
+
+  if (NULL == daemon)
+    {
+      printf ("%s\n", cert_pem);
+  
+      free (key_pem);
+      free (cert_pem);
+  
+      return 1;
+    }
+
+The rest consists of little new besides some additional memory cleanups.
+
+
+  getchar ();
+
+  MHD_stop_daemon (daemon);
+  free (key_pem);
+  free (cert_pem);
+  
+  return 0;
+}
+
+The rather unexciting file loader can be found in the complete example
+`tlsauthentication.c'.
+
+Remarks
+=======
+
+   * While the standard _HTTP_ port is 80, it is 443 for _HTTPS_. The
+     common internet browsers assume standard _HTTP_ if they are asked
+     to access other ports than these. Therefore, you will have to type
+     `https://localhost:8888' explicitly when you test the example, or
+     the browser will not know how to handle the answer properly.
+
+   * The remaining weak point is the question how the server will be
+     trusted initially. Either a _CA_ signs the certificate or the
+     client obtains the key over secure means. Anyway, the clients have
+     to be aware (or configured) that they should not accept
+     certificates of unknown origin.
+
+   * The introduced method of certificates makes it mandatory to set an
+     expiration date--making it less feasible to hardcode certificates
+     in embedded devices.
+
+   * The cryptographic facilities consume memory space and computing
+     time. For this reason, websites usually consists both of
+     uncritically _HTTP_ parts and secured _HTTPS_.
+
+
+Client authentication
+=====================
+
+   You can also use MHD to authenticate the client via SSL/TLS
+certificates (as an alternative to using the password-based Basic or
+Digest authentication).  To do this, you will need to link your
+application against _gnutls_.  Next, when you start the MHD daemon, you
+must specify the root CA that you're willing to trust:
+
+  daemon = MHD_start_daemon (MHD_USE_SELECT_INTERNALLY | MHD_USE_SSL, 
+  	   		     PORT, NULL, NULL,
+                             &answer_to_connection, NULL, 
+                             MHD_OPTION_HTTPS_MEM_KEY, key_pem,
+                             MHD_OPTION_HTTPS_MEM_CERT, cert_pem,
+			     MHD_OPTION_HTTPS_MEM_TRUST, root_ca_pem,
+                             MHD_OPTION_END);
+
+   With this, you can then obtain client certificates for each session.
+In order to obtain the identity of the client, you first need to obtain
+the raw GnuTLS session handle from _MHD_ using
+`MHD_get_connection_info'.
+
+
+#include <gnutls/gnutls.h>
+#include <gnutls/x509.h>
+
+gnutls_session_t tls_session;
+tls_session = MHD_get_connection_info (connection, 
+                                       MHD_CONNECTION_INFO_GNUTLS_SESSION);
+
+   You can then extract the client certificate:
+
+
+/**
+ * Get the client's certificate
+ *
+ * @param tls_session the TLS session
+ * @return NULL if no valid client certificate could be found, a pointer
+ *  	to the certificate if found 
+ */
+static gnutls_x509_crt_t
+get_client_certificate (gnutls_session_t tls_session) 
+{
+  unsigned int listsize;
+  const gnutls_datum_t * pcert;
+  gnutls_certificate_status_t client_cert_status;
+  gnutls_x509_crt_t client_cert;
+
+  if (tls_session == NULL) 
+    return NULL;
+  if (gnutls_certificate_verify_peers2(tls_session,
+				       &client_cert_status)) 
+    return NULL;
+  pcert = gnutls_certificate_get_peers(tls_session, 
+				       &listsize);
+  if ( (pcert == NULL) || 
+       (listsize == 0)) 
+    {
+      fprintf (stderr,
+	       "Failed to retrieve client certificate chain\n");
+      return NULL;
+    }    
+  if (gnutls_x509_crt_init(&client_cert)) 
+    {
+      fprintf (stderr,
+	       "Failed to initialize client certificate\n");
+      return NULL;
+    }
+  /* Note that by passing values between 0 and listsize here, you
+     can get access to the CA's certs */
+  if (gnutls_x509_crt_import(client_cert, 
+			     &pcert[0],
+			     GNUTLS_X509_FMT_DER)) 
+    {
+      fprintf (stderr,
+	       "Failed to import client certificate\n");
+      gnutls_x509_crt_deinit(client_cert);
+      return NULL;
+    }  
+  return client_cert;
+}
+
+   Using the client certificate, you can then get the client's
+distinguished name and alternative names:
+
+
+/**
+ * Get the distinguished name from the client's certificate
+ *
+ * @param client_cert the client certificate
+ * @return NULL if no dn or certificate could be found, a pointer
+ * 			to the dn if found
+ */
+char *
+cert_auth_get_dn(gnutls_x509_crt_c client_cert) 
+{
+  char* buf;
+  size_t lbuf;  
+
+  lbuf = 0;
+  gnutls_x509_crt_get_dn(client_cert, NULL, &lbuf);
+  buf = malloc(lbuf);
+  if (buf == NULL) 
+    {
+      fprintf (stderr,
+	       "Failed to allocate memory for certificate dn\n");
+      return NULL;
+    }
+  gnutls_x509_crt_get_dn(client_cert, buf, &lbuf);
+  return buf;
+}
+
+
+/**
+ * Get the alternative name of specified type from the client's certificate
+ *
+ * @param client_cert the client certificate
+ * @param nametype The requested name type
+ * @param index The position of the alternative name if multiple names are
+ * 			matching the requested type, 0 for the first matching name
+ * @return NULL if no matching alternative name could be found, a pointer
+ * 			to the alternative name if found
+ */
+char *
+MHD_cert_auth_get_alt_name(gnutls_x509_crt_t client_cert,
+			   int nametype, 
+			   unsigned int index) 
+{
+  char* buf;
+  size_t lbuf;
+  unsigned int seq;
+  unsigned int subseq;
+  unsigned int type;
+  int result;
+
+  subseq = 0;
+  for (seq=0;;seq++) 
+    {
+      lbuf = 0;
+      result = gnutls_x509_crt_get_subject_alt_name2(client_cert, seq, NULL, &lbuf,
+						     &type, NULL);
+      if (result == GNUTLS_E_REQUESTED_DATA_NOT_AVAILABLE)
+	return NULL;
+      if (nametype != (int) type)
+	continue;
+      if (subseq == index) 
+	break;
+      subseq++;
+    }
+  buf = malloc(lbuf);
+  if (buf == NULL) 
+    {
+      fprintf (stderr,
+	       "Failed to allocate memory for certificate alt name\n");
+      return NULL;
+    }
+  result = gnutls_x509_crt_get_subject_alt_name2(client_cert, 
+						 seq,
+						 buf,
+						 &lbuf, 
+						 NULL, NULL);
+  if (result != nametype)
+    {
+      fprintf (stderr,
+	       "Unexpected return value from gnutls: %d\n",
+	       result);
+      free (buf);
+      return NULL;
+    }
+  return buf;
+}
+
+   Finally, you should release the memory associated with the client
+certificate:
+
+
+gnutls_x509_crt_deinit (client_cert);
+
+
+File: microhttpd-tutorial.info,  Node: Bibliography,  Next: License text,  Prev: Adding a layer of security,  Up: Top
+
+Bibliography
+************
+
+API reference
+=============
+
+   * The _GNU libmicrohttpd_ manual by Marco Maggi and Christian
+     Grothoff 2008 `http://gnunet.org/libmicrohttpd/microhttpd.html'
+
+   * All referenced RFCs can be found on the website of _The Internet
+     Engineering Task Force_ `http://www.ietf.org/'
+
+   * _RFC 2616_: Fielding, R., Gettys, J., Mogul, J., Frystyk, H., and
+     T. Berners-Lee, "Hypertext Transfer Protocol - HTTP/1.1", RFC
+     2016, January 1997.
+
+   * _RFC 2617_: Franks, J., Hallam-Baker, P., Hostetler, J., Lawrence,
+     S., Leach, P., Luotonen, A., and L. Stewart, "HTTP Authentication:
+     Basic and Digest Access Authentication", RFC 2617, June 1999.
+
+   * A well-structured _HTML_ reference can be found on
+     `http://www.echoecho.com/html.htm'
+
+     For those readers understanding German or French, there is an
+     excellent document both for learning _HTML_ and for reference,
+     whose English version unfortunately has been discontinued.
+     `http://de.selfhtml.org/' and `http://fr.selfhtml.org/'
+
+
+
+File: microhttpd-tutorial.info,  Node: License text,  Next: Example programs,  Prev: Bibliography,  Up: Top
+
+GNU Free Documentation License
+******************************
+
+                     Version 1.3, 3 November 2008
+
+     Copyright (C) 2000, 2001, 2002, 2007, 2008 Free Software Foundation, Inc.
+     `http://fsf.org/'
+     
+     Everyone is permitted to copy and distribute verbatim copies
+     of this license document, but changing it is not allowed.
+
+  0. PREAMBLE
+
+     The purpose of this License is to make a manual, textbook, or other
+     functional and useful document "free" in the sense of freedom: to
+     assure everyone the effective freedom to copy and redistribute it,
+     with or without modifying it, either commercially or
+     noncommercially.  Secondarily, this License preserves for the
+     author and publisher a way to get credit for their work, while not
+     being considered responsible for modifications made by others.
+
+     This License is a kind of "copyleft", which means that derivative
+     works of the document must themselves be free in the same sense.
+     It complements the GNU General Public License, which is a copyleft
+     license designed for free software.
+
+     We have designed this License in order to use it for manuals for
+     free software, because free software needs free documentation: a
+     free program should come with manuals providing the same freedoms
+     that the software does.  But this License is not limited to
+     software manuals; it can be used for any textual work, regardless
+     of subject matter or whether it is published as a printed book.
+     We recommend this License principally for works whose purpose is
+     instruction or reference.
+
+  1. APPLICABILITY AND DEFINITIONS
+
+     This License applies to any manual or other work, in any medium,
+     that contains a notice placed by the copyright holder saying it
+     can be distributed under the terms of this License.  Such a notice
+     grants a world-wide, royalty-free license, unlimited in duration,
+     to use that work under the conditions stated herein.  The
+     "Document", below, refers to any such manual or work.  Any member
+     of the public is a licensee, and is addressed as "you".  You
+     accept the license if you copy, modify or distribute the work in a
+     way requiring permission under copyright law.
+
+     A "Modified Version" of the Document means any work containing the
+     Document or a portion of it, either copied verbatim, or with
+     modifications and/or translated into another language.
+
+     A "Secondary Section" is a named appendix or a front-matter section
+     of the Document that deals exclusively with the relationship of the
+     publishers or authors of the Document to the Document's overall
+     subject (or to related matters) and contains nothing that could
+     fall directly within that overall subject.  (Thus, if the Document
+     is in part a textbook of mathematics, a Secondary Section may not
+     explain any mathematics.)  The relationship could be a matter of
+     historical connection with the subject or with related matters, or
+     of legal, commercial, philosophical, ethical or political position
+     regarding them.
+
+     The "Invariant Sections" are certain Secondary Sections whose
+     titles are designated, as being those of Invariant Sections, in
+     the notice that says that the Document is released under this
+     License.  If a section does not fit the above definition of
+     Secondary then it is not allowed to be designated as Invariant.
+     The Document may contain zero Invariant Sections.  If the Document
+     does not identify any Invariant Sections then there are none.
+
+     The "Cover Texts" are certain short passages of text that are
+     listed, as Front-Cover Texts or Back-Cover Texts, in the notice
+     that says that the Document is released under this License.  A
+     Front-Cover Text may be at most 5 words, and a Back-Cover Text may
+     be at most 25 words.
+
+     A "Transparent" copy of the Document means a machine-readable copy,
+     represented in a format whose specification is available to the
+     general public, that is suitable for revising the document
+     straightforwardly with generic text editors or (for images
+     composed of pixels) generic paint programs or (for drawings) some
+     widely available drawing editor, and that is suitable for input to
+     text formatters or for automatic translation to a variety of
+     formats suitable for input to text formatters.  A copy made in an
+     otherwise Transparent file format whose markup, or absence of
+     markup, has been arranged to thwart or discourage subsequent
+     modification by readers is not Transparent.  An image format is
+     not Transparent if used for any substantial amount of text.  A
+     copy that is not "Transparent" is called "Opaque".
+
+     Examples of suitable formats for Transparent copies include plain
+     ASCII without markup, Texinfo input format, LaTeX input format,
+     SGML or XML using a publicly available DTD, and
+     standard-conforming simple HTML, PostScript or PDF designed for
+     human modification.  Examples of transparent image formats include
+     PNG, XCF and JPG.  Opaque formats include proprietary formats that
+     can be read and edited only by proprietary word processors, SGML or
+     XML for which the DTD and/or processing tools are not generally
+     available, and the machine-generated HTML, PostScript or PDF
+     produced by some word processors for output purposes only.
+
+     The "Title Page" means, for a printed book, the title page itself,
+     plus such following pages as are needed to hold, legibly, the
+     material this License requires to appear in the title page.  For
+     works in formats which do not have any title page as such, "Title
+     Page" means the text near the most prominent appearance of the
+     work's title, preceding the beginning of the body of the text.
+
+     The "publisher" means any person or entity that distributes copies
+     of the Document to the public.
+
+     A section "Entitled XYZ" means a named subunit of the Document
+     whose title either is precisely XYZ or contains XYZ in parentheses
+     following text that translates XYZ in another language.  (Here XYZ
+     stands for a specific section name mentioned below, such as
+     "Acknowledgements", "Dedications", "Endorsements", or "History".)
+     To "Preserve the Title" of such a section when you modify the
+     Document means that it remains a section "Entitled XYZ" according
+     to this definition.
+
+     The Document may include Warranty Disclaimers next to the notice
+     which states that this License applies to the Document.  These
+     Warranty Disclaimers are considered to be included by reference in
+     this License, but only as regards disclaiming warranties: any other
+     implication that these Warranty Disclaimers may have is void and
+     has no effect on the meaning of this License.
+
+  2. VERBATIM COPYING
+
+     You may copy and distribute the Document in any medium, either
+     commercially or noncommercially, provided that this License, the
+     copyright notices, and the license notice saying this License
+     applies to the Document are reproduced in all copies, and that you
+     add no other conditions whatsoever to those of this License.  You
+     may not use technical measures to obstruct or control the reading
+     or further copying of the copies you make or distribute.  However,
+     you may accept compensation in exchange for copies.  If you
+     distribute a large enough number of copies you must also follow
+     the conditions in section 3.
+
+     You may also lend copies, under the same conditions stated above,
+     and you may publicly display copies.
+
+  3. COPYING IN QUANTITY
+
+     If you publish printed copies (or copies in media that commonly
+     have printed covers) of the Document, numbering more than 100, and
+     the Document's license notice requires Cover Texts, you must
+     enclose the copies in covers that carry, clearly and legibly, all
+     these Cover Texts: Front-Cover Texts on the front cover, and
+     Back-Cover Texts on the back cover.  Both covers must also clearly
+     and legibly identify you as the publisher of these copies.  The
+     front cover must present the full title with all words of the
+     title equally prominent and visible.  You may add other material
+     on the covers in addition.  Copying with changes limited to the
+     covers, as long as they preserve the title of the Document and
+     satisfy these conditions, can be treated as verbatim copying in
+     other respects.
+
+     If the required texts for either cover are too voluminous to fit
+     legibly, you should put the first ones listed (as many as fit
+     reasonably) on the actual cover, and continue the rest onto
+     adjacent pages.
+
+     If you publish or distribute Opaque copies of the Document
+     numbering more than 100, you must either include a
+     machine-readable Transparent copy along with each Opaque copy, or
+     state in or with each Opaque copy a computer-network location from
+     which the general network-using public has access to download
+     using public-standard network protocols a complete Transparent
+     copy of the Document, free of added material.  If you use the
+     latter option, you must take reasonably prudent steps, when you
+     begin distribution of Opaque copies in quantity, to ensure that
+     this Transparent copy will remain thus accessible at the stated
+     location until at least one year after the last time you
+     distribute an Opaque copy (directly or through your agents or
+     retailers) of that edition to the public.
+
+     It is requested, but not required, that you contact the authors of
+     the Document well before redistributing any large number of
+     copies, to give them a chance to provide you with an updated
+     version of the Document.
+
+  4. MODIFICATIONS
+
+     You may copy and distribute a Modified Version of the Document
+     under the conditions of sections 2 and 3 above, provided that you
+     release the Modified Version under precisely this License, with
+     the Modified Version filling the role of the Document, thus
+     licensing distribution and modification of the Modified Version to
+     whoever possesses a copy of it.  In addition, you must do these
+     things in the Modified Version:
+
+       A. Use in the Title Page (and on the covers, if any) a title
+          distinct from that of the Document, and from those of
+          previous versions (which should, if there were any, be listed
+          in the History section of the Document).  You may use the
+          same title as a previous version if the original publisher of
+          that version gives permission.
+
+       B. List on the Title Page, as authors, one or more persons or
+          entities responsible for authorship of the modifications in
+          the Modified Version, together with at least five of the
+          principal authors of the Document (all of its principal
+          authors, if it has fewer than five), unless they release you
+          from this requirement.
+
+       C. State on the Title page the name of the publisher of the
+          Modified Version, as the publisher.
+
+       D. Preserve all the copyright notices of the Document.
+
+       E. Add an appropriate copyright notice for your modifications
+          adjacent to the other copyright notices.
+
+       F. Include, immediately after the copyright notices, a license
+          notice giving the public permission to use the Modified
+          Version under the terms of this License, in the form shown in
+          the Addendum below.
+
+       G. Preserve in that license notice the full lists of Invariant
+          Sections and required Cover Texts given in the Document's
+          license notice.
+
+       H. Include an unaltered copy of this License.
+
+       I. Preserve the section Entitled "History", Preserve its Title,
+          and add to it an item stating at least the title, year, new
+          authors, and publisher of the Modified Version as given on
+          the Title Page.  If there is no section Entitled "History" in
+          the Document, create one stating the title, year, authors,
+          and publisher of the Document as given on its Title Page,
+          then add an item describing the Modified Version as stated in
+          the previous sentence.
+
+       J. Preserve the network location, if any, given in the Document
+          for public access to a Transparent copy of the Document, and
+          likewise the network locations given in the Document for
+          previous versions it was based on.  These may be placed in
+          the "History" section.  You may omit a network location for a
+          work that was published at least four years before the
+          Document itself, or if the original publisher of the version
+          it refers to gives permission.
+
+       K. For any section Entitled "Acknowledgements" or "Dedications",
+          Preserve the Title of the section, and preserve in the
+          section all the substance and tone of each of the contributor
+          acknowledgements and/or dedications given therein.
+
+       L. Preserve all the Invariant Sections of the Document,
+          unaltered in their text and in their titles.  Section numbers
+          or the equivalent are not considered part of the section
+          titles.
+
+       M. Delete any section Entitled "Endorsements".  Such a section
+          may not be included in the Modified Version.
+
+       N. Do not retitle any existing section to be Entitled
+          "Endorsements" or to conflict in title with any Invariant
+          Section.
+
+       O. Preserve any Warranty Disclaimers.
+
+     If the Modified Version includes new front-matter sections or
+     appendices that qualify as Secondary Sections and contain no
+     material copied from the Document, you may at your option
+     designate some or all of these sections as invariant.  To do this,
+     add their titles to the list of Invariant Sections in the Modified
+     Version's license notice.  These titles must be distinct from any
+     other section titles.
+
+     You may add a section Entitled "Endorsements", provided it contains
+     nothing but endorsements of your Modified Version by various
+     parties--for example, statements of peer review or that the text
+     has been approved by an organization as the authoritative
+     definition of a standard.
+
+     You may add a passage of up to five words as a Front-Cover Text,
+     and a passage of up to 25 words as a Back-Cover Text, to the end
+     of the list of Cover Texts in the Modified Version.  Only one
+     passage of Front-Cover Text and one of Back-Cover Text may be
+     added by (or through arrangements made by) any one entity.  If the
+     Document already includes a cover text for the same cover,
+     previously added by you or by arrangement made by the same entity
+     you are acting on behalf of, you may not add another; but you may
+     replace the old one, on explicit permission from the previous
+     publisher that added the old one.
+
+     The author(s) and publisher(s) of the Document do not by this
+     License give permission to use their names for publicity for or to
+     assert or imply endorsement of any Modified Version.
+
+  5. COMBINING DOCUMENTS
+
+     You may combine the Document with other documents released under
+     this License, under the terms defined in section 4 above for
+     modified versions, provided that you include in the combination
+     all of the Invariant Sections of all of the original documents,
+     unmodified, and list them all as Invariant Sections of your
+     combined work in its license notice, and that you preserve all
+     their Warranty Disclaimers.
+
+     The combined work need only contain one copy of this License, and
+     multiple identical Invariant Sections may be replaced with a single
+     copy.  If there are multiple Invariant Sections with the same name
+     but different contents, make the title of each such section unique
+     by adding at the end of it, in parentheses, the name of the
+     original author or publisher of that section if known, or else a
+     unique number.  Make the same adjustment to the section titles in
+     the list of Invariant Sections in the license notice of the
+     combined work.
+
+     In the combination, you must combine any sections Entitled
+     "History" in the various original documents, forming one section
+     Entitled "History"; likewise combine any sections Entitled
+     "Acknowledgements", and any sections Entitled "Dedications".  You
+     must delete all sections Entitled "Endorsements."
+
+  6. COLLECTIONS OF DOCUMENTS
+
+     You may make a collection consisting of the Document and other
+     documents released under this License, and replace the individual
+     copies of this License in the various documents with a single copy
+     that is included in the collection, provided that you follow the
+     rules of this License for verbatim copying of each of the
+     documents in all other respects.
+
+     You may extract a single document from such a collection, and
+     distribute it individually under this License, provided you insert
+     a copy of this License into the extracted document, and follow
+     this License in all other respects regarding verbatim copying of
+     that document.
+
+  7. AGGREGATION WITH INDEPENDENT WORKS
+
+     A compilation of the Document or its derivatives with other
+     separate and independent documents or works, in or on a volume of
+     a storage or distribution medium, is called an "aggregate" if the
+     copyright resulting from the compilation is not used to limit the
+     legal rights of the compilation's users beyond what the individual
+     works permit.  When the Document is included in an aggregate, this
+     License does not apply to the other works in the aggregate which
+     are not themselves derivative works of the Document.
+
+     If the Cover Text requirement of section 3 is applicable to these
+     copies of the Document, then if the Document is less than one half
+     of the entire aggregate, the Document's Cover Texts may be placed
+     on covers that bracket the Document within the aggregate, or the
+     electronic equivalent of covers if the Document is in electronic
+     form.  Otherwise they must appear on printed covers that bracket
+     the whole aggregate.
+
+  8. TRANSLATION
+
+     Translation is considered a kind of modification, so you may
+     distribute translations of the Document under the terms of section
+     4.  Replacing Invariant Sections with translations requires special
+     permission from their copyright holders, but you may include
+     translations of some or all Invariant Sections in addition to the
+     original versions of these Invariant Sections.  You may include a
+     translation of this License, and all the license notices in the
+     Document, and any Warranty Disclaimers, provided that you also
+     include the original English version of this License and the
+     original versions of those notices and disclaimers.  In case of a
+     disagreement between the translation and the original version of
+     this License or a notice or disclaimer, the original version will
+     prevail.
+
+     If a section in the Document is Entitled "Acknowledgements",
+     "Dedications", or "History", the requirement (section 4) to
+     Preserve its Title (section 1) will typically require changing the
+     actual title.
+
+  9. TERMINATION
+
+     You may not copy, modify, sublicense, or distribute the Document
+     except as expressly provided under this License.  Any attempt
+     otherwise to copy, modify, sublicense, or distribute it is void,
+     and will automatically terminate your rights under this License.
+
+     However, if you cease all violation of this License, then your
+     license from a particular copyright holder is reinstated (a)
+     provisionally, unless and until the copyright holder explicitly
+     and finally terminates your license, and (b) permanently, if the
+     copyright holder fails to notify you of the violation by some
+     reasonable means prior to 60 days after the cessation.
+
+     Moreover, your license from a particular copyright holder is
+     reinstated permanently if the copyright holder notifies you of the
+     violation by some reasonable means, this is the first time you have
+     received notice of violation of this License (for any work) from
+     that copyright holder, and you cure the violation prior to 30 days
+     after your receipt of the notice.
+
+     Termination of your rights under this section does not terminate
+     the licenses of parties who have received copies or rights from
+     you under this License.  If your rights have been terminated and
+     not permanently reinstated, receipt of a copy of some or all of
+     the same material does not give you any rights to use it.
+
+ 10. FUTURE REVISIONS OF THIS LICENSE
+
+     The Free Software Foundation may publish new, revised versions of
+     the GNU Free Documentation License from time to time.  Such new
+     versions will be similar in spirit to the present version, but may
+     differ in detail to address new problems or concerns.  See
+     `http://www.gnu.org/copyleft/'.
+
+     Each version of the License is given a distinguishing version
+     number.  If the Document specifies that a particular numbered
+     version of this License "or any later version" applies to it, you
+     have the option of following the terms and conditions either of
+     that specified version or of any later version that has been
+     published (not as a draft) by the Free Software Foundation.  If
+     the Document does not specify a version number of this License,
+     you may choose any version ever published (not as a draft) by the
+     Free Software Foundation.  If the Document specifies that a proxy
+     can decide which future versions of this License can be used, that
+     proxy's public statement of acceptance of a version permanently
+     authorizes you to choose that version for the Document.
+
+ 11. RELICENSING
+
+     "Massive Multiauthor Collaboration Site" (or "MMC Site") means any
+     World Wide Web server that publishes copyrightable works and also
+     provides prominent facilities for anybody to edit those works.  A
+     public wiki that anybody can edit is an example of such a server.
+     A "Massive Multiauthor Collaboration" (or "MMC") contained in the
+     site means any set of copyrightable works thus published on the MMC
+     site.
+
+     "CC-BY-SA" means the Creative Commons Attribution-Share Alike 3.0
+     license published by Creative Commons Corporation, a not-for-profit
+     corporation with a principal place of business in San Francisco,
+     California, as well as future copyleft versions of that license
+     published by that same organization.
+
+     "Incorporate" means to publish or republish a Document, in whole or
+     in part, as part of another Document.
+
+     An MMC is "eligible for relicensing" if it is licensed under this
+     License, and if all works that were first published under this
+     License somewhere other than this MMC, and subsequently
+     incorporated in whole or in part into the MMC, (1) had no cover
+     texts or invariant sections, and (2) were thus incorporated prior
+     to November 1, 2008.
+
+     The operator of an MMC Site may republish an MMC contained in the
+     site under CC-BY-SA on the same site at any time before August 1,
+     2009, provided the MMC is eligible for relicensing.
+
+
+ADDENDUM: How to use this License for your documents
+====================================================
+
+   To use this License in a document you have written, include a copy of
+the License in the document and put the following copyright and license
+notices just after the title page:
+
+       Copyright (C)  YEAR  YOUR NAME.
+       Permission is granted to copy, distribute and/or modify this document
+       under the terms of the GNU Free Documentation License, Version 1.3
+       or any later version published by the Free Software Foundation;
+       with no Invariant Sections, no Front-Cover Texts, and no Back-Cover
+       Texts.  A copy of the license is included in the section entitled ``GNU
+       Free Documentation License''.
+
+   If you have Invariant Sections, Front-Cover Texts and Back-Cover
+Texts, replace the "with...Texts." line with this:
+
+         with the Invariant Sections being LIST THEIR TITLES, with
+         the Front-Cover Texts being LIST, and with the Back-Cover Texts
+         being LIST.
+
+   If you have Invariant Sections without Cover Texts, or some other
+combination of the three, merge those two alternatives to suit the
+situation.
+
+   If your document contains nontrivial examples of program code, we
+recommend releasing these examples in parallel under your choice of
+free software license, such as the GNU General Public License, to
+permit their use in free software.
+
+
+File: microhttpd-tutorial.info,  Node: Example programs,  Prev: License text,  Up: Top
+
+Example programs
+****************
+
+* Menu:
+
+* hellobrowser.c::
+* logging.c::
+* responseheaders.c::
+* basicauthentication.c::
+* simplepost.c::
+* largepost.c::
+* sessions.c::
+* tlsauthentication.c::
+
