@@ -1,0 +1,4 @@
+src/Debug
+src/build
+build/*
+*.user
