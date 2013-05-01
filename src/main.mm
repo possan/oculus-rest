@@ -3,6 +3,8 @@
 #include <string.h>
 #include <stdint.h>
 
+#import <Cocoa/Cocoa.h>
+
 #ifdef _WIN32
 
 #include <winsock2.h>
@@ -57,12 +59,15 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
 	return ret;
 }
 
-int main(int argc, char *argv[]) {	
-	OVR::System::Init();
-	pManager = *DeviceManager::Create();
-	pHMD     = *pManager->EnumerateDevices<HMDDevice>().CreateDevice();
-	if (!pHMD)
+int main(int argc, char **argv) {	
+    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
+	OVR::System::Init();	
+ 	pManager = *DeviceManager::Create();
+	pHMD = *pManager->EnumerateDevices<HMDDevice>().CreateDevice();
+	if (!pHMD) {
+		printf("No HMD found.\n");
 		return 1;
+	}
 	pSensor  = *pHMD->GetSensor();
 	HMDInfo hmdInfo;
 	pHMD->GetDeviceInfo(&hmdInfo);
@@ -87,5 +92,6 @@ int main(int argc, char *argv[]) {
 	pHMD.Clear();
 	pManager.Clear();
 	OVR::System::Destroy();
+	[pool drain];
 	return 0;
 }
