@@ -56,9 +56,9 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
 int main(int argc, char **argv) {	
 	OVR::System::Init();
  	pManager = *DeviceManager::Create();
-	printf("pManager: %X\n", (void *)pManager);
+	// printf("pManager: %X\n", (void *)pManager);
 	pHMD = *pManager->EnumerateDevices<HMDDevice>().CreateDevice();
-	printf("pHMD: %X\n", (void *)pHMD);
+	// printf("pHMD: %X\n", (void *)pHMD);
 	if (!pHMD) {
 		printf("No HMD found.\n");
 		return 1;

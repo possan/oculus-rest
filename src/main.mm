@@ -1,21 +1,11 @@
+
+#import <Cocoa/Cocoa.h>
+#import <Foundation/Foundation.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-
-#import <Cocoa/Cocoa.h>
-
-#ifdef _WIN32
-
-#include <winsock2.h>
-#include <BaseTsd.h>
-#include <WS2tcpip.h>
-#include <sys/types.h>
-typedef unsigned long ssize_t;
-#define MHD_PLATFORM_H
-
-#endif
-
 #include <microhttpd.h>
 #include <OVR.h>
 
@@ -59,14 +49,20 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
 	return ret;
 }
 
-int main(int argc, char **argv) {	
-    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-	OVR::System::Init();	
+@interface OVRApp : NSApplication
+- (void) run;
+@end
+
+@implementation OVRApp
+- (void) run {
+    NSLog(@"Hello!");
+    
+	OVR::System::Init();
  	pManager = *DeviceManager::Create();
 	pHMD = *pManager->EnumerateDevices<HMDDevice>().CreateDevice();
 	if (!pHMD) {
 		printf("No HMD found.\n");
-		return 1;
+		return;
 	}
 	pSensor  = *pHMD->GetSensor();
 	HMDInfo hmdInfo;
@@ -77,21 +73,26 @@ int main(int argc, char **argv) {
 	d = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION, 50000, NULL, NULL, &ahc_echo, NULL, MHD_OPTION_END);
 	if (d == NULL) {
 		printf("Unable to start webserver.\n");
-		return 1;
+		return;
 	}
 	while(true) {
-#ifdef _WIN32
-		Sleep(100);
-#else
 		sleep(1000);
-#endif
-
 	}
 	MHD_stop_daemon(d);
 	pSensor.Clear();
 	pHMD.Clear();
 	pManager.Clear();
 	OVR::System::Destroy();
-	[pool drain];
-	return 0;
 }
+@end
+
+int main(int argc, char *argv[])
+{
+    NSApplication* nsapp = [OVRApp sharedApplication];
+    [nsapp run];
+    return 0;
+}
+
+
+
+

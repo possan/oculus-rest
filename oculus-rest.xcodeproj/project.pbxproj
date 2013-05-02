@@ -7,7 +7,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		958B2EBF1732F5E800A05610 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 958B2EBE1732F5E800A05610 /* main.cpp */; };
+		956D363C1732FCB100BD9868 /* main.mm in Sources */ = {isa = PBXBuildFile; fileRef = 956D363B1732FCB100BD9868 /* main.mm */; };
+		957D66C01733093F00A48F6A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 957D66BF1733093F00A48F6A /* Foundation.framework */; };
+		957D66C21733099500A48F6A /* Cocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 957D66C11733099500A48F6A /* Cocoa.framework */; };
 		958B2EC31732F6BE00A05610 /* libmicrohttpd.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 958B2EC21732F6BE00A05610 /* libmicrohttpd.a */; };
 		958B2ECA1732F6DB00A05610 /* ApplicationServices.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 958B2EC41732F6DB00A05610 /* ApplicationServices.framework */; };
 		958B2ECB1732F6DB00A05610 /* CFNetwork.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 958B2EC51732F6DB00A05610 /* CFNetwork.framework */; };
@@ -61,8 +63,10 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		956D363B1732FCB100BD9868 /* main.mm */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.objcpp; name = main.mm; path = src/main.mm; sourceTree = SOURCE_ROOT; };
+		957D66BF1733093F00A48F6A /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		957D66C11733099500A48F6A /* Cocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Cocoa.framework; path = System/Library/Frameworks/Cocoa.framework; sourceTree = SDKROOT; };
 		958B2EB21732F5B600A05610 /* oculus-rest */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = "oculus-rest"; sourceTree = BUILT_PRODUCTS_DIR; };
-		958B2EBE1732F5E800A05610 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = src/main.cpp; sourceTree = SOURCE_ROOT; };
 		958B2EC21732F6BE00A05610 /* libmicrohttpd.a */ = {isa = PBXFileReference; lastKnownFileType = archive.ar; name = libmicrohttpd.a; path = libmicrohttpd/bin/libmicrohttpd.a; sourceTree = "<group>"; };
 		958B2EC41732F6DB00A05610 /* ApplicationServices.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ApplicationServices.framework; path = System/Library/Frameworks/ApplicationServices.framework; sourceTree = SDKROOT; };
 		958B2EC51732F6DB00A05610 /* CFNetwork.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CFNetwork.framework; path = System/Library/Frameworks/CFNetwork.framework; sourceTree = SDKROOT; };
@@ -149,6 +153,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				957D66C21733099500A48F6A /* Cocoa.framework in Frameworks */,
+				957D66C01733093F00A48F6A /* Foundation.framework in Frameworks */,
 				958B2ECA1732F6DB00A05610 /* ApplicationServices.framework in Frameworks */,
 				958B2ECB1732F6DB00A05610 /* CFNetwork.framework in Frameworks */,
 				958B2ECC1732F6DB00A05610 /* CoreFoundation.framework in Frameworks */,
@@ -165,6 +171,8 @@
 		958B2EA91732F5B600A05610 = {
 			isa = PBXGroup;
 			children = (
+				957D66C11733099500A48F6A /* Cocoa.framework */,
+				957D66BF1733093F00A48F6A /* Foundation.framework */,
 				958B2ED01732F6F200A05610 /* libovr */,
 				958B2EC41732F6DB00A05610 /* ApplicationServices.framework */,
 				958B2EC51732F6DB00A05610 /* CFNetwork.framework */,
@@ -189,7 +197,7 @@
 		958B2EB41732F5B600A05610 /* oculus-rest */ = {
 			isa = PBXGroup;
 			children = (
-				958B2EBE1732F5E800A05610 /* main.cpp */,
+				956D363B1732FCB100BD9868 /* main.mm */,
 			);
 			path = "oculus-rest";
 			sourceTree = "<group>";
@@ -324,7 +332,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				958B2EBF1732F5E800A05610 /* main.cpp in Sources */,
 				958B2EEC1732F70800A05610 /* OVR_DeviceHandle.cpp in Sources */,
 				958B2EED1732F70800A05610 /* OVR_DeviceImpl.cpp in Sources */,
 				958B2EEE1732F70800A05610 /* OVR_LatencyTestImpl.cpp in Sources */,
@@ -356,6 +363,7 @@
 				958B2F351732F74600A05610 /* Util_LatencyTest.cpp in Sources */,
 				958B2F361732F74600A05610 /* Util_MagCalibration.cpp in Sources */,
 				958B2F371732F74600A05610 /* Util_Render_Stereo.cpp in Sources */,
+				956D363C1732FCB100BD9868 /* main.mm in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -433,7 +441,14 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
+				CLANG_CXX_LIBRARY = "libstdc++";
+				CLANG_ENABLE_OBJC_ARC = YES;
 				CONFIGURATION_BUILD_DIR = build;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+					OVR_BUILD_DEBUG,
+				);
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
 					"\"$(SRCROOT)/LibOVR/Lib/MacOS\"",
@@ -448,6 +463,8 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ARCHS = "$(ARCHS_STANDARD_32_64_BIT)";
+				CLANG_CXX_LIBRARY = "libstdc++";
+				CLANG_ENABLE_OBJC_ARC = YES;
 				CONFIGURATION_BUILD_DIR = build;
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
