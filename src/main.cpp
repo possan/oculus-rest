@@ -2,18 +2,14 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
-
 #ifdef _WIN32
-
-#include <winsock2.h>
-#include <BaseTsd.h>
-#include <WS2tcpip.h>
-#include <sys/types.h>
-typedef unsigned long ssize_t;
-#define MHD_PLATFORM_H
-
+    #include <winsock2.h>
+    #include <BaseTsd.h>
+    #include <WS2tcpip.h>
+    #include <sys/types.h>
+    typedef unsigned long ssize_t;
+    #define MHD_PLATFORM_H
 #endif
-
 #include <microhttpd.h>
 #include <OVR.h>
 
@@ -57,12 +53,16 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
 	return ret;
 }
 
-int main(int argc, char *argv[]) {	
+int main(int argc, char **argv) {	
 	OVR::System::Init();
-	pManager = *DeviceManager::Create();
-	pHMD     = *pManager->EnumerateDevices<HMDDevice>().CreateDevice();
-	if (!pHMD)
+ 	pManager = *DeviceManager::Create();
+	printf("pManager: %X\n", (void *)pManager);
+	pHMD = *pManager->EnumerateDevices<HMDDevice>().CreateDevice();
+	printf("pHMD: %X\n", (void *)pHMD);
+	if (!pHMD) {
+		printf("No HMD found.\n");
 		return 1;
+	}
 	pSensor  = *pHMD->GetSensor();
 	HMDInfo hmdInfo;
 	pHMD->GetDeviceInfo(&hmdInfo);
