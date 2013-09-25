@@ -61,13 +61,16 @@ int main(int argc, char **argv) {
 	// printf("pHMD: %X\n", (void *)pHMD);
 	if (!pHMD) {
 		printf("No HMD found.\n");
-		return 1;
+		//return 1;
 	}
-	pSensor  = *pHMD->GetSensor();
-	HMDInfo hmdInfo;
-	pHMD->GetDeviceInfo(&hmdInfo);
-	if (pSensor)
-		FusionResult.AttachToSensor(pSensor);
+	else if (pHMD) {
+		pSensor  = *pHMD->GetSensor();
+		HMDInfo hmdInfo;
+		pHMD->GetDeviceInfo(&hmdInfo);
+		if (pSensor)
+			FusionResult.AttachToSensor(pSensor);
+	}
+
 	struct MHD_Daemon * d;
 	d = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION, 50000, NULL, NULL, &ahc_echo, NULL, MHD_OPTION_END);
 	if (d == NULL) {
