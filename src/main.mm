@@ -32,15 +32,16 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
 		return MHD_NO; /* upload data in a GET!? */
 	*ptr = NULL; /* clear context pointer */
 
-//	Quatf q = FusionResult.GetOrientation();
-	// Matrix4f bodyFrameMatrix(q);
+    ovrHmd_BeginFrameTiming(Hmd, 0);
     ovrPosef pose = ovrHmd_GetEyePose(Hmd, ovrEye_Right);
     ovrQuatf orientation = pose.Orientation;
+    Quatf o = orientation;
 	float yaw, pitch, roll;
+    o.GetEulerAngles<OVR::Axis_X, OVR::Axis_Y, OVR::Axis_Z>(&yaw, &pitch, &roll);
 
 	char json[300] = { 0, };
 	sprintf(json, "{\"quat\":{\"x\":%1.7f,\"y\":%1.7f,\"z\":%1.7f,\"w\":%1.7f},\"euler\":{\"y\":%1.7f,\"p\":%1.7f,\"r\":%1.7f}}", orientation.x, orientation.y, orientation.z, orientation.w, yaw, pitch, roll);
-	printf("SEND: %s\n", json);
+    ovrHmd_EndFrameTiming(Hmd);
 	response = MHD_create_response_from_data(strlen(json), (void*) &json, MHD_NO, MHD_YES);
 	MHD_add_response_header (response, "Content-Type", "application/json");
 	MHD_add_response_header (response, "Access-Control-Allow-Origin", "*");
@@ -71,6 +72,11 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
 			return;
 		}
 	}
+    
+    // Start the sensor which provides the Rift’s pose and motion.
+    ovrHmd_ConfigureTracking(Hmd, ovrTrackingCap_Orientation |
+                             ovrTrackingCap_MagYawCorrection |
+                             ovrTrackingCap_Position, 0);
     
 	struct MHD_Daemon * d;
 	d = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION, 50000, NULL, NULL, &ahc_echo, NULL, MHD_OPTION_END);

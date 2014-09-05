@@ -1244,7 +1244,7 @@ r0
 
 CCheck dependencies
 r0
-lSLF06#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection18"Check dependencies18"Check dependencies130dd66045b9b941^c8b2d86045b9b941^---0#1#1#--18"Check dependencies36"5DAF4EA3-2B46-4B53-8BAE-998102439502-
+lSLF06#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection18"Check dependencies18"Check dependencies1d004dc445b9b941^9e624dc445b9b941^---0#1#1#--18"Check dependencies36"A94EDE63-D103-47BD-A1A5-5F45C5D0B859-
 
 CCompileC /Users/michael/Source/oculus-rest/LibOVR/Lib/Mac/Xcode/Debug/LibOVR.build/Objects-normal/i386/CAPI_DistortionRenderer.o /Users/michael/Source/oculus-rest/LibOVR/Src/CAPI/CAPI_DistortionRenderer.cpp normal i386 c++ com.apple.compilers.llvm.clang.1_0.compiler
 s431571953.393794
