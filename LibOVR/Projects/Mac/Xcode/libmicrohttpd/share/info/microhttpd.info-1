@@ -1,0 +1,1161 @@
+This is microhttpd.info, produced by makeinfo version 4.3 from
+microhttpd.texi.
+
+This manual documents GNU libmicrohttpd version 0.9.17, last updated
+25 November 2011. It is built upon the documentation in the header file
+`microhttpd.h'.
+
+Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.3 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, no Front-Cover Texts, and
+     no Back-Cover Texts.  A copy of the license is included in the
+     section entitled "GNU Free Documentation License".
+   GNU libmicrohttpd is a GNU package.
+INFO-DIR-SECTION GNU Libraries
+START-INFO-DIR-ENTRY
+* libmicrohttpd: (microhttpd).  Embedded HTTP server library.
+END-INFO-DIR-ENTRY
+
+
+File: microhttpd.info,  Node: Top,  Next: microhttpd-intro,  Up: (dir)
+
+The GNU libmicrohttpd Library
+*****************************
+
+This manual documents GNU libmicrohttpd version 0.9.17, last updated
+25 November 2011. It is built upon the documentation in the header file
+`microhttpd.h'.
+
+Copyright (C) 2007, 2008, 2009, 2010, 2011 Christian Grothoff
+
+     Permission is granted to copy, distribute and/or modify this
+     document under the terms of the GNU Free Documentation License,
+     Version 1.3 or any later version published by the Free Software
+     Foundation; with no Invariant Sections, no Front-Cover Texts, and
+     no Back-Cover Texts.  A copy of the license is included in the
+     section entitled "GNU Free Documentation License".
+   GNU libmicrohttpd is a GNU package.
+* Menu:
+
+* microhttpd-intro::            Introduction.
+* microhttpd-const::            Constants.
+* microhttpd-struct::           Structures type definition.
+* microhttpd-cb::               Callback functions definition.
+* microhttpd-init::             Starting and stopping the server.
+* microhttpd-inspect::          Implementing external `select'.
+* microhttpd-requests::         Handling requests.
+* microhttpd-responses::        Building responses to requests.
+* microhttpd-dauth::            Utilizing Authentication.
+* microhttpd-post::             Adding a `POST' processor.
+* microhttpd-info::             Obtaining and modifying status information.
+
+Appendices
+
+* GNU-LGPL::                     The GNU Lesser General Public License says how you
+                                 can copy and share almost all of `libmicrohttpd'.
+* GNU GPL with eCos Extension::  The GNU General Public License with eCos extension says how you
+                                 can copy and share some parts of `libmicrohttpd'.
+* GNU-FDL::                     The GNU Free Documentation License says how you
+                                can copy and share the documentation of `libmicrohttpd'.
+
+Indices
+
+* Concept Index::               Index of concepts and programs.
+* Function and Data Index::     Index of functions, variables and data types.
+* Type Index::                  Index of data types.
+
+
+File: microhttpd.info,  Node: microhttpd-intro,  Next: microhttpd-const,  Prev: Top,  Up: Top
+
+Introduction
+************
+
+All symbols defined in the public API start with `MHD_'.  MHD is a
+small HTTP daemon library.  As such, it does not have any API for
+logging errors (you can only enable or disable logging to stderr).
+Also, it may not support all of the HTTP features directly, where
+applicable, portions of HTTP may have to be handled by clients of the
+library.
+
+   The library is supposed to handle everything that it must handle
+(because the API would not allow clients to do this), such as basic
+connection management; however, detailed interpretations of headers --
+such as range requests -- and HTTP methods are left to clients.  The
+library does understand `HEAD' and will only send the headers of the
+response and not the body, even if the client supplied a body.  The
+library also understands headers that control connection management
+(specifically, `Connection: close' and `Expect: 100 continue' are
+understood and handled automatically).
+
+   MHD understands `POST' data and is able to decode certain formats
+(at the moment only `application/x-www-form-urlencoded' and
+`multipart/form-data') using the post processor API.  The data stream
+of a POST is also provided directly to the main application, so
+unsupported encodings could still be processed, just not conveniently
+by MHD.
+
+   The header file defines various constants used by the HTTP protocol.
+This does not mean that MHD actually interprets all of these values.
+The provided constants are exported as a convenience for users of the
+library.  MHD does not verify that transmitted HTTP headers are part of
+the standard specification; users of the library are free to define
+their own extensions of the HTTP standard and use those with MHD.
+
+   All functions are guaranteed to be completely reentrant and
+thread-safe.  MHD checks for allocation failures and tries to recover
+gracefully (for example, by closing the connection).  Additionally,
+clients can specify resource limits on the overall number of
+connections, number of connections per IP address and memory used per
+connection to avoid resource exhaustion.
+
+Scope
+=====
+
+   MHD is currently used in a wide range of implementations.  Examples
+based on reports we've received from developers include:
+   * Embedded HTTP server on a cortex M3 (128 KB code space)
+
+   * Large-scale multimedia server (reportedly serving at the
+     simulator limit of 7.5 GB/s)
+
+   * Administrative console (via HTTP/HTTPS) for network appliances
+
+Compiling GNU libmicrohttpd
+===========================
+
+   MHD uses the standard GNU system where the usual build process
+involves running
+
+$ ./configure
+$ make
+$ make install
+
+   MHD supports various options to be given to configure to tailor the
+binary to a specific situation.  Note that some of these options will
+remove portions of the MHD code that are required for
+binary-compatibility.  They should only be used on embedded systems
+with tight resource constraints and no concerns about library
+versioning.  Standard distributions including MHD are expected to
+always ship with all features enabled, otherwise unexpected
+incompatibilities can arise!
+
+   Here is a list of MHD-specific options that can be given to configure
+(canonical configure options such as "-prefix" are also supported, for a
+full list of options run "./configure -help"):
+
+```--disable-curl'''
+     disable running testcases using libcurl
+
+```--disable-largefile'''
+     disable support for 64-bit files
+
+```--disable-messages'''
+     disable logging of error messages (smaller binary size, not so
+     much fun for debugging)
+
+```--disable-https'''
+     disable HTTPS support, even if GNUtls is found; this option must
+     be used if eCOS license is desired as an option (in all cases the
+     resulting binary falls under a GNU LGPL-only license)
+
+```--disable-postprocessor'''
+     do not include the post processor API (results in binary
+     incompatibility)
+
+```--disable-dauth'''
+     do not include the authentication APIs (results in binary
+     incompatibility)
+
+```--enable-coverage'''
+     set flags for analysis of code-coverage with gcc/gcov (results in
+     slow, large binaries)
+
+```--with-gcrypt=PATH'''
+     specifies path to libgcrypt installation
+
+```--with-gnutls=PATH'''
+     specifies path to libgnutls installation
+
+Including the microhttpd.h header
+=================================
+
+   Ideally, before including "microhttpd.h" you should add the necessary
+includes to define the `uint64_t', `size_t', `fd_set', `socklen_t' and
+`struct sockaddr' data types.  Which specific headers are needed may
+depend on your platform and your build system might include some tests
+to provide you with the necessary conditional operations.  For possible
+suggestions consult `platform.h' and `configure.ac' in the MHD
+distribution.
+
+   Once you have ensured that you manually (!) included the right
+headers for your platform before "microhttpd.h", you should also add a
+line with `#define MHD_PLATFORM_H' which will prevent the
+"microhttpd.h" header from trying (and, depending on your platform,
+failing) to include the right headers.
+
+   If you do not define MHD_PLATFORM_H, the "microhttpd.h" header will
+automatically include headers needed on GNU/Linux systems (possibly
+causing problems when porting to other platforms).
+
+SIGPIPE
+=======
+
+   MHD does not install a signal handler for SIGPIPE.  On platforms
+where this is possible (such as GNU/Linux), it disables SIGPIPE for its
+I/O operations (by passing MSG_NOSIGNAL).  On other platforms, SIGPIPE
+signals may be generated from network operations by MHD and will cause
+the process to die unless the developer explicitly installs a signal
+handler for SIGPIPE.
+
+   Hence portable code using MHD must install a SIGPIPE handler or
+explicitly block the SIGPIPE signal.  MHD does not do so in order to
+avoid messing with other parts of the application that may need to
+handle SIGPIPE in a particular way.  You can make your application
+handle SIGPIPE by calling the following function in `main':
+
+
+static void
+catcher (int sig)
+{
+}
+
+static void
+ignore_sigpipe ()
+{
+  struct sigaction oldsig;
+  struct sigaction sig;
+
+  sig.sa_handler = &catcher;
+  sigemptyset (&sig.sa_mask);
+#ifdef SA_INTERRUPT
+  sig.sa_flags = SA_INTERRUPT;  /* SunOS */
+#else
+  sig.sa_flags = SA_RESTART;
+#endif
+  if (0 != sigaction (SIGPIPE, &sig, &oldsig))
+    fprintf (stderr,
+             "Failed to install SIGPIPE handler: %s\n", strerror (errno));
+}
+
+MHD_LONG_LONG
+=============
+
+   Some platforms do not support `long long'.  Hence MHD defines a
+macro `MHD_LONG_LONG' which will default to `long long'.  If your
+platform does not support `long long', you should change "platform.h"
+to define `MHD_LONG_LONG' to an appropriate alternative type and also
+define `MHD_LONG_LONG_PRINTF' to the corresponding format string for
+printing such a data type (without the percent sign).
+
+
+File: microhttpd.info,  Node: microhttpd-const,  Next: microhttpd-struct,  Prev: microhttpd-intro,  Up: Top
+
+Constants
+*********
+
+ - Enumeration: MHD_FLAG
+     Options for the MHD daemon.
+
+     Note that if neither `MHD_USE_THREAD_PER_CONNECTION' nor
+     `MHD_USE_SELECT_INTERNALLY' is used, the client wants control over
+     the process and will call the appropriate microhttpd callbacks.
+
+     Starting the daemon may also fail if a particular option is not
+     implemented or not supported on the target platform (i.e. no
+     support for SSL, threads or IPv6).  SSL support generally depends
+     on options given during MHD compilation.  Threaded operations
+     (including `MHD_USE_SELECT_INTERNALLY') are not supported on
+     Symbian.
+
+    `MHD_NO_FLAG'
+          No options selected.
+
+    `MHD_USE_DEBUG'
+          Run in debug mode.  If this flag is used, the library should
+          print error messages and warnings to stderr.  Note that for
+          this run-time option to have any effect, MHD needs to be
+          compiled with messages enabled. This is done by default
+          except you ran configure with the `--disable-messages' flag
+          set.
+
+    `MHD_USE_SSL'
+          Run in https mode (this option may not work with all
+          threading modes yet).
+
+    `MHD_USE_THREAD_PER_CONNECTION'
+          Run using one thread per connection.
+
+    `MHD_USE_SELECT_INTERNALLY'
+          Run using an internal thread doing `SELECT'.
+
+    `MHD_USE_IPv6'
+          Run using the IPv6 protocol (otherwise, MHD will just support
+          IPv4).
+
+    `MHD_USE_PEDANTIC_CHECKS'
+          Be pedantic about the protocol (as opposed to as tolerant as
+          possible).  Specifically, at the moment, this flag causes MHD
+          to reject HTTP 1.1 connections without a `Host' header.  This
+          is required by the standard, but of course in violation of
+          the "be as liberal as possible in what you accept" norm.  It
+          is recommended to turn this *ON* if you are testing clients
+          against MHD, and *OFF* in production.
+
+    `MHD_USE_POLL'
+          Use poll instead of select. This allows sockets with
+          descriptors `>= FD_SETSIZE'.  This option only works in
+          conjunction with `MHD_USE_THREAD_PER_CONNECTION' (at this
+          point).
+
+    `MHD_SUPPRESS_DATE_NO_CLOCK'
+          Suppress (automatically) adding the 'Date:' header to HTTP
+          responses.  This option should ONLY be used on systems that
+          do not have a clock and that DO provide other mechanisms for
+          cache control.  See also RFC 2616, section 14.18 (exception
+          3).
+
+
+ - Enumeration: MHD_OPTION
+     MHD options.  Passed in the varargs portion of
+     `MHD_start_daemon()'.
+
+    `MHD_OPTION_END'
+          No more options / last option.  This is used to terminate the
+          VARARGs list.
+
+    `MHD_OPTION_CONNECTION_MEMORY_LIMIT'
+          Maximum memory size per connection (followed by a `size_t').
+          The default is 32 kB (32*1024 bytes) as defined by the
+          internal constant `MHD_POOL_SIZE_DEFAULT'.
+
+    `MHD_OPTION_CONNECTION_LIMIT'
+          Maximum number of concurrent connections to accept (followed
+          by an `unsigned int').  The default is `FD_SETSIZE - 4' (the
+          maximum number of file descriptors supported by `select' minus
+          four for `stdin', `stdout', `stderr' and the server socket).
+          In other words, the default is as large as possible.
+
+          Note that if you set a low connection limit, you can easily
+          get into trouble with browsers doing request pipelining.  For
+          example, if your connection limit is "1", a browser may open
+          a first connection to access your "index.html" file, keep it
+          open but use a second connection to retrieve CSS files,
+          images and the like.  In fact, modern browsers are typically
+          by default configured for up to 15 parallel connections to a
+          single server.  If this happens, MHD will refuse to even
+          accept the second connection until the first connection is
+          closed -- which does not happen until timeout.  As a result,
+          the browser will fail to render the page and seem to hang.
+          If you expect your server to operate close to the connection
+          limit, you should first consider using a lower timeout value
+          and also possibly add a "Connection: close" header to your
+          response to ensure that request pipelining is not used and
+          connections are closed immediately after the request has
+          completed:
+               MHD_add_response_header (response,
+                                        MHD_HTTP_HEADER_CONNECTION,
+                                        "close");
+
+    `MHD_OPTION_CONNECTION_TIMEOUT'
+          After how many seconds of inactivity should a connection
+          automatically be timed out? (followed by an `unsigned int';
+          use zero for no timeout).  The default is zero (no timeout).
+
+    `MHD_OPTION_NOTIFY_COMPLETED'
+          Register a function that should be called whenever a request
+          has been completed (this can be used for application-specific
+          clean up).  Requests that have never been presented to the
+          application (via `MHD_AccessHandlerCallback()') will not
+          result in notifications.
+
+          This option should be followed by *TWO* pointers.  First a
+          pointer to a function of type `MHD_RequestCompletedCallback()'
+          and second a pointer to a closure to pass to the request
+          completed callback.  The second pointer maybe `NULL'.
+
+    `MHD_OPTION_PER_IP_CONNECTION_LIMIT'
+          Limit on the number of (concurrent) connections made to the
+          server from the same IP address.  Can be used to prevent one
+          IP from taking over all of the allowed connections.  If the
+          same IP tries to establish more than the specified number of
+          connections, they will be immediately rejected.  The option
+          should be followed by an `unsigned int'.  The default is
+          zero, which means no limit on the number of connections from
+          the same IP address.
+
+    `MHD_OPTION_SOCK_ADDR'
+          Bind daemon to the supplied socket address. This option
+          should be followed by a `struct sockaddr *'.  If
+          `MHD_USE_IPv6' is specified, the `struct sockaddr*' should
+          point to a `struct sockaddr_in6', otherwise to a `struct
+          sockaddr_in'.  If this option is not specified, the daemon
+          will listen to incoming connections from anywhere.
+
+    `MHD_OPTION_URI_LOG_CALLBACK'
+          Specify a function that should be called before parsing the
+          URI from the client.  The specified callback function can be
+          used for processing the URI (including the options) before it
+          is parsed.  The URI after parsing will no longer contain the
+          options, which maybe inconvenient for logging.  This option
+          should be followed by two arguments, the first one must be of
+          the form
+                void * my_logger(void * cls, const char * uri)
+          where the return value will be passed as `*con_cls' in calls
+          to the `MHD_AccessHandlerCallback' when this request is
+          processed later; returning a value of NULL has no special
+          significance; (however, note that if you return non-NULL, you
+          can no longer rely on the first call to the access handler
+          having `NULL == *con_cls' on entry) `cls' will be set to the
+          second argument following MHD_OPTION_URI_LOG_CALLBACK.
+          Finally, `uri' will be the 0-terminated URI of the request.
+
+    `MHD_OPTION_HTTPS_MEM_KEY'
+          Memory pointer to the private key to be used by the HTTPS
+          daemon.  This option should be followed by an "const char*"
+          argument.  This should be used in conjunction with
+          'MHD_OPTION_HTTPS_MEM_CERT'.
+
+    `MHD_OPTION_HTTPS_MEM_CERT'
+          Memory pointer to the certificate to be used by the HTTPS
+          daemon.  This option should be followed by an "const char*"
+          argument.  This should be used in conjunction with
+          'MHD_OPTION_HTTPS_MEM_KEY'.
+
+    `MHD_OPTION_HTTPS_MEM_TRUST'
+          Memory pointer to the CA certificate to be used by the HTTPS
+          daemon to authenticate and trust clients certificates.  This
+          option should be followed by an "const char*" argument.  The
+          presence of this option activates the request of certificate
+          to the client. The request to the client is marked optional,
+          and it is the responsibility of the server to check the
+          presence of the certificate if needed.  Note that most
+          browsers will only present a client certificate only if they
+          have one matching the specified CA, not sending any
+          certificate otherwise.
+
+    `MHD_OPTION_HTTPS_CRED_TYPE'
+          Daemon credentials type.  Either certificate or anonymous,
+          this option should be followed by one of the values listed in
+          "enum gnutls_credentials_type_t".
+
+    `MHD_OPTION_HTTPS_PRIORITIES'
+          SSL/TLS protocol version and ciphers.  This option must be
+          followed by an "const char *" argument specifying the SSL/TLS
+          protocol versions and ciphers that are acceptable for the
+          application.  The string is passed unchanged to
+          gnutls_priority_init.  If this option is not specified,
+          "NORMAL" is used.
+
+    `MHD_OPTION_DIGEST_AUTH_RANDOM'
+          Digest Authentication nonce's seed.
+
+          This option should be followed by two arguments.  First an
+          integer of type "size_t" which specifies the size of the
+          buffer pointed to by the second argument in bytes.  Note that
+          the application must ensure that the buffer of the second
+          argument remains allocated and unmodified while the daemon is
+          running.  For security, you SHOULD provide a fresh random
+          nonce when using MHD with Digest Authentication.
+
+    `MHD_OPTION_NONCE_NC_SIZE'
+          Size of an array of nonce and nonce counter map.  This option
+          must be followed by an "unsigned int" argument that have the
+          size (number of elements) of a map of a nonce and a
+          nonce-counter.  If this option is not specified, a default
+          value of 4 will be used (which might be too small for servers
+          handling many requests).  If you do not use digest
+          authentication at all, you can specify a value of zero to
+          save some memory.
+
+          You should calculate the value of NC_SIZE based on the number
+          of connections per second multiplied by your expected session
+          duration plus a factor of about two for hash table
+          collisions.  For example, if you expect 100
+          digest-authenticated connections per second and the average
+          user to stay on your site for 5 minutes, then you likely need
+          a value of about 60000.  On the other hand, if you can only
+          expect only 10 digest-authenticated connections per second,
+          tolerate browsers getting a fresh nonce for each request and
+          expect a HTTP request latency of 250 ms, then a value of
+          about 5 should be fine.
+
+    `MHD_OPTION_LISTEN_SOCKET'
+          Listen socket to use.  Pass a listen socket for MHD to use
+          (systemd-style).  If this option is used, MHD will not open
+          its own listen socket(s). The argument passed must be of type
+          "int" and refer to an existing socket that has been bound to
+          a port and is listening.
+
+    `MHD_OPTION_EXTERNAL_LOGGER'
+          Use the given function for logging error messages.  This
+          option must be followed by two arguments; the first must be a
+          pointer to a function of type 'void fun(void * arg, const
+          char * fmt, va_list ap)' and the second a pointer of type
+          'void*' which will be passed as the "arg" argument to "fun".
+
+          Note that MHD will not generate any log messages without the
+          MHD_USE_DEBUG flag set and if MHD was compiled with the
+          "-disable-messages" flag.
+
+    `MHD_OPTION_THREAD_POOL_SIZE'
+          Number (unsigned int) of threads in thread pool. Enable
+          thread pooling by setting this value to to something greater
+          than 1. Currently, thread model must be
+          MHD_USE_SELECT_INTERNALLY if thread pooling is enabled
+          (MHD_start_daemon returns NULL for an unsupported thread
+          model).
+
+    `MHD_OPTION_ARRAY'
+          This option can be used for initializing MHD using options
+          from an array.  A common use for this is writing an FFI for
+          MHD.  The actual options given are in an array of 'struct
+          MHD_OptionItem', so this option requires a single argument of
+          type 'struct MHD_OptionItem'.  The array must be terminated
+          with an entry `MHD_OPTION_END'.
+
+          An example for code using MHD_OPTION_ARRAY is:
+               struct MHD_OptionItem ops[] = {
+                { MHD_OPTION_CONNECTION_LIMIT, 100, NULL },
+                { MHD_OPTION_CONNECTION_TIMEOUT, 10, NULL },
+                { MHD_OPTION_END, 0, NULL }
+               };
+               d = MHD_start_daemon(0, 8080, NULL, NULL, dh, NULL,
+                                    MHD_OPTION_ARRAY, ops,
+                                    MHD_OPTION_END);
+          For options that expect a single pointer argument, the second
+          member of the `struct MHD_OptionItem' is ignored.  For
+          options that expect two pointer arguments, the first argument
+          must be cast to `intptr_t'.
+
+    `MHD_OPTION_UNESCAPE_CALLBACK'
+          Specify a function that should be called for unescaping escape
+          sequences in URIs and URI arguments.  Note that this function
+          will NOT be used by the MHD_PostProcessor.  If this option is
+          not specified, the default method will be used which decodes
+          escape sequences of the form "%HH".  This option should be
+          followed by two arguments, the first one must be of the form
+
+                 size_t my_unescaper(void * cls, struct MHD_Connection *c, char *s)
+
+          where the return value must be `strlen(s)' and `s' should be
+          updated.  Note that the unescape function must not lengthen
+          `s' (the result must be shorter than the input and still be
+          0-terminated).  `cls' will be set to the second argument
+          following MHD_OPTION_UNESCAPE_CALLBACK.
+
+    `MHD_OPTION_THREAD_STACK_SIZE'
+          Maximum stack size for threads created by MHD.  This option
+          must be followed by a `size_t').  Not specifying this option
+          or using a value of zero means using the system default
+          (which is likely to differ based on your platform).
+
+
+ - C Struct: MHD_OptionItem
+     Entry in an MHD_OPTION_ARRAY.  See the `MHD_OPTION_ARRAY' option
+     argument for its use.
+
+     The `option' member is used to specify which option is specified
+     in the array.  The other members specify the respective argument.
+
+     Note that for options taking only a single pointer, the
+     `ptr_value' member should be set.  For options taking two pointer
+     arguments, the first pointer must be cast to `intptr_t' and both
+     the `value' and the `ptr_value' members should be used to pass the
+     two pointers.
+
+ - Enumeration: MHD_ValueKind
+     The `MHD_ValueKind' specifies the source of the key-value pairs in
+     the HTTP protocol.
+
+    `MHD_RESPONSE_HEADER_KIND'
+          Response header.
+
+    `MHD_HEADER_KIND'
+          HTTP header.
+
+    `MHD_COOKIE_KIND'
+          Cookies.  Note that the original HTTP header containing the
+          cookie(s) will still be available and intact.
+
+    `MHD_POSTDATA_KIND'
+          `POST' data.  This is available only if a content encoding
+          supported by MHD is used (currently only URL encoding), and
+          only if the posted content fits within the available memory
+          pool.  Note that in that case, the upload data given to the
+          `MHD_AccessHandlerCallback()' will be empty (since it has
+          already been processed).
+
+    `MHD_GET_ARGUMENT_KIND'
+          `GET' (URI) arguments.
+
+    `MHD_FOOTER_KIND'
+          HTTP footer (only for http 1.1 chunked encodings).
+
+
+ - Enumeration: MHD_RequestTerminationCode
+     The `MHD_RequestTerminationCode' specifies reasons why a request
+     has been terminated (or completed).
+
+    `MHD_REQUEST_TERMINATED_COMPLETED_OK'
+          We finished sending the response.
+
+    `MHD_REQUEST_TERMINATED_WITH_ERROR'
+          Error handling the connection (resources exhausted, other
+          side closed connection, application error accepting request,
+          etc.)
+
+    `MHD_REQUEST_TERMINATED_TIMEOUT_REACHED'
+          No activity on the connection for the number of seconds
+          specified using `MHD_OPTION_CONNECTION_TIMEOUT'.
+
+    `MHD_REQUEST_TERMINATED_DAEMON_SHUTDOWN'
+          We had to close the session since MHD was being shut down.
+
+ - Enumeration: MHD_ResponseMemoryMode
+     The `MHD_ResponeMemoryMode' specifies how MHD should treat the
+     memory buffer given for the response in
+     `MHD_create_response_from_buffer'.
+
+    `MHD_RESPMEM_PERSISTENT'
+          Buffer is a persistent (static/global) buffer that won't
+          change for at least the lifetime of the response, MHD should
+          just use it, not free it, not copy it, just keep an alias to
+          it.
+
+    `MHD_RESPMEM_MUST_FREE'
+          Buffer is heap-allocated with `malloc' (or equivalent) and
+          should be freed by MHD after processing the response has
+          concluded (response reference counter reaches zero).
+
+    `MHD_RESPMEM_MUST_COPY'
+          Buffer is in transient memory, but not on the heap (for
+          example, on the stack or non-malloc allocated) and only valid
+          during the call to `MHD_create_response_from_buffer'.  MHD
+          must make its own private copy of the data for processing.
+
+
+
+File: microhttpd.info,  Node: microhttpd-struct,  Next: microhttpd-cb,  Prev: microhttpd-const,  Up: Top
+
+Structures type definition
+**************************
+
+ - C Struct: MHD_Daemon
+     Handle for the daemon (listening on a socket for HTTP traffic).
+
+ - C Struct: MHD_Connection
+     Handle for a connection / HTTP request.  With HTTP/1.1, multiple
+     requests can be run over the same connection.  However, MHD will
+     only show one request per TCP connection to the client at any
+     given time.
+
+ - C Struct: MHD_Response
+     Handle for a response.
+
+ - C Struct: MHD_PostProcessor
+     Handle for `POST' processing.
+
+ - C Union: MHD_ConnectionInfo
+     Information about a connection.
+
+ - C Union: MHD_DaemonInfo
+     Information about an MHD daemon.
+
+
+File: microhttpd.info,  Node: microhttpd-cb,  Next: microhttpd-init,  Prev: microhttpd-struct,  Up: Top
+
+Callback functions definition
+*****************************
+
+ - Function Pointer: int *MHD_AcceptPolicyCallback (void *cls, const
+          struct sockaddr * addr, socklen_t addrlen)
+     Invoked in the context of a connection to allow or deny a client to
+     connect.  This callback return `MHD_YES' if connection is allowed,
+     `MHD_NO' if not.
+
+    CLS
+          custom value selected at callback registration time;
+
+    ADDR
+          address information from the client;
+
+    ADDRLEN
+          length of the address information.
+
+ - Function Pointer: int *MHD_AccessHandlerCallback (void *cls, struct
+          MHD_Connection * connection, const char *url, const char
+          *method, const char *version, const char *upload_data, size_t
+          *upload_data_size, void **con_cls)
+     Invoked in the context of a connection to answer a request from the
+     client.  This callback must call MHD functions (example: the
+     `MHD_Response' ones) to provide content to give back to the client
+     and return an HTTP status code (i.e. `200' for OK, `404', etc.).
+
+     *Note microhttpd-post::, for details on how to code this callback.
+
+     Must return `MHD_YES' if the connection was handled successfully,
+     `MHD_NO' if the socket must be closed due to a serious error while
+     handling the request
+
+    CLS
+          custom value selected at callback registration time;
+
+    URL
+          the URL requested by the client;
+
+    METHOD
+          the HTTP method used by the client (`GET', `PUT', `DELETE',
+          `POST', etc.);
+
+    VERSION
+          the HTTP version string (i.e. `HTTP/1.1');
+
+    UPLOAD_DATA
+          the data being uploaded (excluding headers):
+
+             * for a `POST' that fits into memory and that is encoded
+               with a supported encoding, the `POST' data will *NOT* be
+               given in UPLOAD_DATA and is instead available as part of
+               `MHD_get_connection_values()';
+
+             * very large `POST' data *will* be made available
+               incrementally in UPLOAD_DATA;
+
+    UPLOAD_DATA_SIZE
+          set initially to the size of the UPLOAD_DATA provided; this
+          callback must update this value to the number of bytes *NOT*
+          processed; unless external select is used, the callback maybe
+          required to process at least some data.  If the callback
+          fails to process data in multi-threaded or internal-select
+          mode and if the read-buffer is already at the maximum size
+          that MHD is willing to use for reading (about half of the
+          maximum amount of memory allowed for the connection), then
+          MHD will abort handling the connection and return an internal
+          server error to the client.  In order to avoid this, clients
+          must be able to process upload data incrementally and reduce
+          the value of `upload_data_size'.
+
+    CON_CLS
+          reference to a pointer, initially set to `NULL', that this
+          callback can set to some address and that will be preserved
+          by MHD for future calls for this request;
+
+          since the access handler may be called many times (i.e., for a
+          `PUT'/`POST' operation with plenty of upload data) this allows
+          the application to easily associate some request-specific
+          state;
+
+          if necessary, this state can be cleaned up in the global
+          `MHD_RequestCompletedCallback' (which can be set with the
+          `MHD_OPTION_NOTIFY_COMPLETED').
+
+ - Function Pointer: void *MHD_RequestCompletedCallback (void *cls,
+          struct MHD_Connectionconnection, void **con_cls, enum
+          MHD_RequestTerminationCode toe)
+     Signature of the callback used by MHD to notify the application
+     about completed requests.
+
+    CLS
+          custom value selected at callback registration time;
+
+    CONNECTION
+          connection handle;
+
+    CON_CLS
+          value as set by the last call to the
+          `MHD_AccessHandlerCallback';
+
+    TOE
+          reason for request termination see
+          `MHD_OPTION_NOTIFY_COMPLETED'.
+
+ - Function Pointer: int *MHD_KeyValueIterator (void *cls, enum
+          MHD_ValueKind kind, const char *key, const char *value)
+     Iterator over key-value pairs.  This iterator can be used to
+     iterate over all of the cookies, headers, or `POST'-data fields of
+     a request, and also to iterate over the headers that have been
+     added to a response.
+
+     Return `MHD_YES' to continue iterating, `MHD_NO' to abort the
+     iteration.
+
+ - Function Pointer: int *MHD_ContentReaderCallback (void *cls,
+          uint64_t pos, char *buf, size_t max)
+     Callback used by MHD in order to obtain content.  The callback has
+     to copy at most MAX bytes of content into BUF.  The total number
+     of bytes that has been placed into BUF should be returned.
+
+     Note that returning zero will cause MHD to try again, either
+     "immediately" if in multi-threaded mode (in which case the callback
+     may want to do blocking operations to avoid busy waiting) or in the
+     next round if `MHD_run' is used.  Returning zero for a daemon that
+     runs in internal `select()' mode is an error (since it would
+     result in busy waiting) and cause the program to be aborted
+     (`abort()').
+
+     While usually the callback simply returns the number of bytes
+     written into BUF, there are two special return value:
+
+     `MHD_CONTENT_READER_END_OF_STREAM' (-1) should be returned for the
+     regular end of transmission (with chunked encoding, MHD will then
+     terminate the chunk and send any HTTP footers that might be
+     present; without chunked encoding and given an unknown response
+     size, MHD will simply close the connection; note that while
+     returning `MHD_CONTENT_READER_END_OF_STREAM' is not technically
+     legal if a response size was specified, MHD accepts this and
+     treats it just as `MHD_CONTENT_READER_END_WITH_ERROR'.
+
+     `MHD_CONTENT_READER_END_WITH_ERROR' (-2) is used to indicate a
+     server error generating the response; this will cause MHD to simply
+     close the connection immediately.  If a response size was given or
+     if chunked encoding is in use, this will indicate an error to the
+     client.  Note, however, that if the client does not know a
+     response size and chunked encoding is not in use, then clients
+     will not be able to tell the difference between
+     `MHD_CONTENT_READER_END_WITH_ERROR' and
+     `MHD_CONTENT_READER_END_OF_STREAM'.  This is not a limitation of
+     MHD but rather of the HTTP protocol.
+
+    CLS
+          custom value selected at callback registration time;
+
+    POS
+          position in the datastream to access; note that if an
+          `MHD_Response' object is re-used, it is possible for the same
+          content reader to be queried multiple times for the same
+          data; however, if an `MHD_Response' is not re-used, MHD
+          guarantees that POS will be the sum of all non-negative
+          return values obtained from the content reader so far.
+
+     Return `-1' on error (MHD will no longer try to read content and
+     instead close the connection with the client).
+
+ - Function Pointer: void *MHD_ContentReaderFreeCallback (void *cls)
+     This method is called by MHD if we are done with a content reader.
+     It should be used to free resources associated with the content
+     reader.
+
+ - Function Pointer: int *MHD_PostDataIterator (void *cls, enum
+          MHD_ValueKind kind, const char *key, const char *filename,
+          const char *content_type, const char *transfer_encoding,
+          const char *data, uint64_t off, size_t size)
+     Iterator over key-value pairs where the value maybe made available
+     in increments and/or may not be zero-terminated.  Used for
+     processing `POST' data.
+
+    CLS
+          custom value selected at callback registration time;
+
+    KIND
+          type of the value;
+
+    KEY
+          zero-terminated key for the value;
+
+    FILENAME
+          name of the uploaded file, `NULL' if not known;
+
+    CONTENT_TYPE
+          mime-type of the data, `NULL' if not known;
+
+    TRANSFER_ENCODING
+          encoding of the data, `NULL' if not known;
+
+    DATA
+          pointer to size bytes of data at the specified offset;
+
+    OFF
+          offset of data in the overall value;
+
+    SIZE
+          number of bytes in data available.
+
+     Return `MHD_YES' to continue iterating, `MHD_NO' to abort the
+     iteration.
+
+
+File: microhttpd.info,  Node: microhttpd-init,  Next: microhttpd-inspect,  Prev: microhttpd-cb,  Up: Top
+
+Starting and stopping the server
+********************************
+
+ - Function: void MHD_set_panic_func (MHD_PanicCallback cb, void *cls)
+     Set a handler for fatal errors.
+
+    CB
+          function to call if MHD encounters a fatal internal error.
+          If no handler was set explicitly, MHD will call `abort'.
+
+    CLS
+          closure argument for cb; the other arguments are the name of
+          the source file, line number and a string describing the
+          nature of the fatal error (which can be NULL)
+
+ - Function: struct MHD_Daemon * MHD_start_daemon (unsigned int flags,
+          unsigned short port, MHD_AcceptPolicyCallback apc, void
+          *apc_cls, MHD_AccessHandlerCallback dh, void *dh_cls, ...)
+     Start a webserver on the given port.
+
+    FLAGS
+          OR-ed combination of `MHD_FLAG' values;
+
+    PORT
+          port to bind to;
+
+    APC
+          callback to call to check which clients will be allowed to
+          connect; you can pass `NULL' in which case connections from
+          any IP will be accepted;
+
+    APC_CLS
+          extra argument to APC;
+
+    DH
+          default handler for all URIs;
+
+    DH_CLS
+          extra argument to DH.
+
+     Additional arguments are a list of options (type-value pairs,
+     terminated with `MHD_OPTION_END'). It is mandatory to use
+     `MHD_OPTION_END' as last argument, even when there are no
+     additional arguments.
+
+     Return `NULL' on error, handle to daemon on success.
+
+ - Function: void MHD_stop_daemon (struct MHD_Daemon *daemon)
+     Shutdown an HTTP daemon.
+
+ - Function: int MHD_run (struct MHD_Daemon *daemon)
+     Run webserver operations (without blocking unless in client
+     callbacks).  This method should be called by clients in
+     combination with `MHD_get_fdset()' if the client-controlled
+     `select()' method is used.
+
+     Return `MHD_YES' on success, `MHD_NO' if this daemon was not
+     started with the right options for this call.
+
+ - Function: void MHD_add_connection (struct MHD_Daemon *daemon, int
+          client_socket, const struct sockaddr *addr, socklen_t addrlen)
+     Add another client connection to the set of connections managed by
+     MHD.  This API is usually not needed (since MHD will accept
+     inbound connections on the server socket).  Use this API in
+     special cases, for example if your HTTP server is behind NAT and
+     needs to connect out to the HTTP client.
+
+     The given client socket will be managed (and closed!) by MHD after
+     this call and must no longer be used directly by the application
+     afterwards.
+
+    DAEMON
+          daemon that manages the connection
+
+    CLIENT_SOCKET
+          socket to manage (MHD will expect to receive an HTTP request
+          from this socket next).
+
+    ADDR
+          IP address of the client
+
+    ADDRLEN
+          number of bytes in addr
+
+     This function will return `MHD_YES' on success, `MHD_NO' if this
+     daemon could not handle the connection (i.e. malloc failed, etc).
+     The socket will be closed in any case.
+
+
+File: microhttpd.info,  Node: microhttpd-inspect,  Next: microhttpd-requests,  Prev: microhttpd-init,  Up: Top
+
+Implementing external `select'
+******************************
+
+ - Function: int MHD_get_fdset (struct MHD_Daemon *daemon, fd_set *
+          read_fd_set, fd_set * write_fd_set, fd_set * except_fd_set,
+          int *max_fd)
+     Obtain the `select()' sets for this daemon. The daemon's socket is
+     added to READ_FD_SET. The list of currently existent connections
+     is scanned and their file descriptors added to the correct set.
+
+     After the call completed successfully: the variable referenced by
+     MAX_FD references the file descriptor with highest integer
+     identifier. The variable must be set to zero before invoking this
+     function.
+
+     Return `MHD_YES' on success, `MHD_NO' if: the arguments are
+     invalid (example: `NULL' pointers); this daemon was not started
+     with the right options for this call.
+
+ - Function: int MHD_get_timeout (struct MHD_Daemon *daemon, unsigned
+          long long *timeout)
+     Obtain timeout value for select for this daemon (only needed if
+     connection timeout is used).  The returned value is how long
+     `select()' should at most block, not the timeout value set for
+     connections.  This function must not be called if the
+     `MHD_USE_THREAD_PER_CONNECTION' mode is in use (since then it is
+     not meaningful to ask for a timeout, after all, there is
+     concurrenct activity).  The function must also not be called by
+     user-code if `MHD_USE_INTERNAL_SELECT' is in use.  In the latter
+     case, the behavior is undefined.
+
+          set to the timeout (in milliseconds).
+
+     Return `MHD_YES' on success, `MHD_NO' if timeouts are not used (or
+     no connections exist that would necessiate the use of a timeout
+     right now).
+
+
+File: microhttpd.info,  Node: microhttpd-requests,  Next: microhttpd-responses,  Prev: microhttpd-inspect,  Up: Top
+
+Handling requests
+*****************
+
+ - Function: int MHD_get_connection_values (struct MHD_Connection
+          *connection, enum MHD_ValueKind kind, MHD_KeyValueIterator
+          iterator, void *iterator_cls)
+     Get all the headers matching KIND from the request.
+
+     The ITERATOR callback is invoked once for each header, with
+     ITERATOR_CLS as first argument. Return the number of entries
+     iterated over; this can be less than the number of headers if,
+     while iterating, ITERATOR returns `MHD_NO'.
+
+     ITERATOR can be `NULL': in this case this function just counts and
+     returns the number of headers.
+
+     In the case of `MHD_GET_ARGUMENT_KIND', the VALUE argument will be
+     NULL if the URL contained a key without an equals operator.  For
+     example, for a HTTP request to the URL "http://foo/bar?key", the
+     VALUE argument is NULL; in contrast, a HTTP request to the URL
+     "http://foo/bar?key=", the VALUE argument is the empty string.
+     The normal case is that the URL contains "http://foo/bar?key=value"
+     in which case VALUE would be the string "value" and KEY would
+     contain the string "key".
+
+ - Function: int MHD_set_connection_value (struct MHD_Connection
+          *connection, enum MHD_ValueKind kind, const char * key, const
+          char * value)
+     This function can be used to add an entry to the HTTP headers of a
+     connection (so that the `MHD_get_connection_values function' will
+     return them - and the MHD PostProcessor will also see them).  This
+     maybe required in certain situations (see Mantis #1399) where
+     (broken) HTTP implementations fail to supply values needed by the
+     post processor (or other parts of the application).
+
+     This function MUST only be called from within the
+     MHD_AccessHandlerCallback (otherwise, access maybe improperly
+     synchronized).  Furthermore, the client must guarantee that the
+     key and value arguments are 0-terminated strings that are NOT
+     freed until the connection is closed.  (The easiest way to do this
+     is by passing only arguments to permanently allocated strings.).
+
+     CONNECTION is the connection for which the entry for KEY of the
+     given KIND should be set to the given VALUE.
+
+     The function returns `MHD_NO' if the operation could not be
+     performed due to insufficient memory and `MHD_YES' on success.
+
+ - Function: const char * MHD_lookup_connection_value (struct
+          MHD_Connection *connection, enum MHD_ValueKind kind, const
+          char *key)
+     Get a particular header value.  If multiple values match the KIND,
+     return one of them (the "first", whatever that means).  KEY must
+     reference a zero-terminated ASCII-coded string representing the
+     header to look for: it is compared against the headers using
+     `strcasecmp()', so case is ignored.  Return `NULL' if no such item
+     was found.
+
+
+File: microhttpd.info,  Node: microhttpd-responses,  Next: microhttpd-dauth,  Prev: microhttpd-requests,  Up: Top
+
+Building responses to requests
+******************************
+
+Response objects handling by MHD is asynchronous with respect to the
+application execution flow. Instances of the `MHD_Response' structure
+are not associated to a daemon and neither to a client connection: they
+are managed with reference counting.
+
+   In the simplest case: we allocate a new `MHD_Response' structure for
+each response, we use it once and finally we destroy it.
+
+   MHD allows more efficient resources usages.
+
+   Example: we allocate a new `MHD_Response' structure for each
+response *kind*, we use it every time we have to give that response and
+we finally destroy it only when the daemon shuts down.
+
+* Menu:
+
+* microhttpd-response enqueue:: Enqueuing a response.
+* microhttpd-response create::  Creating a response object.
+* microhttpd-response headers:: Adding headers to a response.
+* microhttpd-response inspect:: Inspecting a response object.
+
+
+File: microhttpd.info,  Node: microhttpd-response enqueue,  Next: microhttpd-response create,  Up: microhttpd-responses
+
+Enqueuing a response
+====================
+
+ - Function: int MHD_queue_response (struct MHD_Connection *connection,
+          unsigned int status_code, struct MHD_Response *response)
+     Queue a response to be transmitted to the client as soon as
+     possible but only after MHD_AccessHandlerCallback returns.  This
+     function checks that it is legal to queue a response at this time
+     for the given connection.  It also increments the internal
+     reference counter for the response object (the counter will be
+     decremented automatically once the response has been transmitted).
+
+    CONNECTION
+          the connection identifying the client;
+
+    STATUS_CODE
+          HTTP status code (i.e. `200' for OK);
+
+    RESPONSE
+          response to transmit.
+
+     Return `MHD_YES' on success or if message has been queued.  Return
+     `MHD_NO': if arguments are invalid (example: `NULL' pointer); on
+     error (i.e. reply already sent).
+
+ - Function: void MHD_destroy_response (struct MHD_Response *response)
+     Destroy a response object and associated resources (decrement the
+     reference counter).  Note that MHD may keep some of the resources
+     around if the response is still in the queue for some clients, so
+     the memory may not necessarily be freed immediately.
+
+   An explanation of reference counting(1):
+
+  1. a `MHD_Response' object is allocated:
+
+          struct MHD_Response * response = MHD_create_response_from_buffer(...);
+          /* here: reference counter = 1 */
+
+  2. the `MHD_Response' object is enqueued in a `MHD_Connection':
+
+          MHD_queue_response(connection, , response);
+          /* here: reference counter = 2 */
+
+  3. the creator of the response object discharges responsibility for
+     it:
+
+          MHD_destroy_response(response);
+          /* here: reference counter = 1 */
+
+  4. the daemon handles the connection sending the response's data to
+     the client then decrements the reference counter by calling
+     `MHD_destroy_response()': the counter's value drops to zero and
+     the `MHD_Response' object is released.
+
+   ---------- Footnotes ----------
+
+   (1) Note to readers acquainted to the Tcl API: reference counting on
+`MHD_Connection' structures is handled in the same way as Tcl handles
+`Tcl_Obj' structures through `Tcl_IncrRefCount()' and
+`Tcl_DecrRefCount()'.
+

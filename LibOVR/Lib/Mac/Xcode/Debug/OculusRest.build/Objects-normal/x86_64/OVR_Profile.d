@@ -1,0 +1,26 @@
+dependencies: \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/OVR_Profile.cpp \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/OVR_Profile.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/OVR_DeviceConstants.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_Math.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_Types.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_Compiler.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_RefCount.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_Allocator.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_Std.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_Alg.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Kernel/OVR_String.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_UTF8Util.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_Atomic.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Kernel/OVR_Array.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_ContainerAllocator.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Kernel/OVR_StringHash.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_Hash.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Kernel/OVR_System.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_Log.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/OVR_JSON.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Kernel/OVR_List.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Kernel/OVR_SysFile.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Sensors/../Kernel/OVR_File.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/OVR_Stereo.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Displays/OVR_Display.h

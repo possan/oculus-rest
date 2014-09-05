@@ -11,10 +11,8 @@
 
 using namespace OVR;
 
-Ptr<DeviceManager> pManager = 0;
-Ptr<HMDDevice> pHMD = 0;
-Ptr<SensorDevice> pSensor = 0;
-SensorFusion FusionResult;
+ovrHmd Hmd;
+bool UsingDebugHmd;
 
 static int ahc_echo(void * cls, struct MHD_Connection * connection, const char * url, const char * method, const char * version, const char * upload_data, size_t * upload_data_size, void ** ptr) {
 	static int dummy;
@@ -34,12 +32,14 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
 		return MHD_NO; /* upload data in a GET!? */
 	*ptr = NULL; /* clear context pointer */
 
-	Quatf q = FusionResult.GetOrientation();
-	// Matrix4f bodyFrameMatrix(q); 
+//	Quatf q = FusionResult.GetOrientation();
+	// Matrix4f bodyFrameMatrix(q);
+    ovrPosef pose = ovrHmd_GetEyePose(Hmd, ovrEye_Right);
+    ovrQuatf orientation = pose.Orientation;
 	float yaw, pitch, roll;
-	q.GetEulerAngles<Axis_Y, Axis_X, Axis_Z>(&yaw, &pitch, &roll);
+
 	char json[300] = { 0, };
-	sprintf(json, "{\"quat\":{\"x\":%1.7f,\"y\":%1.7f,\"z\":%1.7f,\"w\":%1.7f},\"euler\":{\"y\":%1.7f,\"p\":%1.7f,\"r\":%1.7f}}", q.x, q.y, q.z, q.w, yaw, pitch, roll);
+	sprintf(json, "{\"quat\":{\"x\":%1.7f,\"y\":%1.7f,\"z\":%1.7f,\"w\":%1.7f},\"euler\":{\"y\":%1.7f,\"p\":%1.7f,\"r\":%1.7f}}", orientation.x, orientation.y, orientation.z, orientation.w, yaw, pitch, roll);
 	printf("SEND: %s\n", json);
 	response = MHD_create_response_from_data(strlen(json), (void*) &json, MHD_NO, MHD_YES);
 	MHD_add_response_header (response, "Content-Type", "application/json");
@@ -57,18 +57,21 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
 - (void) run {
     NSLog(@"Hello!");
     
-	OVR::System::Init();
- 	pManager = *DeviceManager::Create();
-	pHMD = *pManager->EnumerateDevices<HMDDevice>().CreateDevice();
-	if (!pHMD) {
-		printf("No HMD found.\n");
-		return;
+	ovr_Initialize();
+    Hmd = ovrHmd_Create(0);
+    if (!Hmd)
+	{
+		// If we didn't detect an Hmd, create a simulated one for debugging.
+        printf("Using a dummy Hmd\n");
+		Hmd = ovrHmd_CreateDebug(ovrHmd_DK1);
+		UsingDebugHmd = true;
+		if (!Hmd)
+		{   // Failed Hmd creation.
+            printf("couldn't even make a fake guy :(.");
+			return;
+		}
 	}
-	pSensor  = *pHMD->GetSensor();
-	HMDInfo hmdInfo;
-	pHMD->GetDeviceInfo(&hmdInfo);
-	if (pSensor)
-		FusionResult.AttachToSensor(pSensor);
+    
 	struct MHD_Daemon * d;
 	d = MHD_start_daemon(MHD_USE_THREAD_PER_CONNECTION, 50000, NULL, NULL, &ahc_echo, NULL, MHD_OPTION_END);
 	if (d == NULL) {
@@ -78,11 +81,7 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
 	while(true) {
 		sleep(1000);
 	}
-	MHD_stop_daemon(d);
-	pSensor.Clear();
-	pHMD.Clear();
-	pManager.Clear();
-	OVR::System::Destroy();
+	ovr_Shutdown();
 }
 @end
 

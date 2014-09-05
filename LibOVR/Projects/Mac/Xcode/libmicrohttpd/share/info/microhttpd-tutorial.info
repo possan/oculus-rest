@@ -1,0 +1,39 @@
+This is microhttpd-tutorial.info, produced by makeinfo version 4.3 from
+microhttpd-tutorial.texi.
+
+INFO-DIR-SECTION GNU Libraries
+START-INFO-DIR-ENTRY
+* libmicrohttpdtutorial: (microhttpd).  A tutorial for GNU libmicrohttpd.
+END-INFO-DIR-ENTRY
+
+
+Indirect:
+microhttpd-tutorial.info-1: 245
+microhttpd-tutorial.info-2: 42990
+microhttpd-tutorial.info-3: 92638
+
+Tag Table:
+(Indirect)
+Node: Top245
+Node: Introduction1220
+Node: Hello browser example2517
+Node: Exploring requests13560
+Node: Response headers18969
+Node: Supporting basic authentication26878
+Node: Processing POST data34280
+Node: Improved processing of POST data42990
+Node: Session management53762
+Node: Adding a layer of security56671
+Node: Bibliography66022
+Node: License text67192
+Node: Example programs92350
+Node: hellobrowser.c92638
+Node: logging.c93992
+Node: responseheaders.c95417
+Node: basicauthentication.c97880
+Node: simplepost.c100284
+Node: largepost.c105908
+Node: sessions.c112977
+Node: tlsauthentication.c135586
+
+End Tag Table

@@ -1,0 +1,21 @@
+dependencies: \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/Tracking_SensorStateReader.cpp \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/Tracking_SensorStateReader.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_Lockless.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_Atomic.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_Types.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_Compiler.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/Tracking_SensorState.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/Tracking_PoseState.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_Math.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_RefCount.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_Allocator.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_Std.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_Alg.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_SharedMemory.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_System.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_Log.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_String.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Kernel/OVR_UTF8Util.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Util/Util_LatencyTest2State.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Tracking/../Sensors/OVR_DeviceConstants.h

@@ -1,0 +1,29 @@
+dependencies: \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/OVR_Session.cpp \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/OVR_Session.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/OVR_Socket.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Types.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Compiler.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Timer.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Allocator.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_RefCount.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_String.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_UTF8Util.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Atomic.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Std.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Alg.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/OVR_PacketizedTCPSocket.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/OVR_Unix_Socket.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/OVR_BitStream.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Array.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_ContainerAllocator.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Threads.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Log.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Service/Service_NetSessionCommon.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Service/../OVR_CAPI.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Service/../Net/OVR_RPC1.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/OVR_NetworkPlugin.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Hash.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel/OVR_Delegates.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Kernel//OVR_Observer.h \
+  /Users/michael/Downloads/OculusSDK/LibOVR/Src/Net/../Service/../Kernel/OVR_System.h
