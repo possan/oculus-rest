@@ -37,7 +37,7 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
     ovrQuatf orientation = pose.Orientation;
     Quatf o = orientation;
 	float yaw, pitch, roll;
-    o.GetEulerAngles<OVR::Axis_X, OVR::Axis_Y, OVR::Axis_Z>(&yaw, &pitch, &roll);
+    o.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
 
 	char json[300] = { 0, };
 	sprintf(json, "{\"quat\":{\"x\":%1.7f,\"y\":%1.7f,\"z\":%1.7f,\"w\":%1.7f},\"euler\":{\"y\":%1.7f,\"p\":%1.7f,\"r\":%1.7f}}", orientation.x, orientation.y, orientation.z, orientation.w, yaw, pitch, roll);
