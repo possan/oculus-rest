@@ -32,15 +32,23 @@ static int ahc_echo(void * cls, struct MHD_Connection * connection, const char *
 		return MHD_NO; /* upload data in a GET!? */
 	*ptr = NULL; /* clear context pointer */
 
-    ovrHmd_BeginFrameTiming(Hmd, 0);
-    ovrPosef pose = ovrHmd_GetEyePose(Hmd, ovrEye_Right);
-    ovrQuatf orientation = pose.Orientation;
-    Quatf o = orientation;
+	ovrHmd_BeginFrameTiming(Hmd, 0);
+	ovrPosef pose = ovrHmd_GetEyePose(Hmd, ovrEye_Right);
+	ovrQuatf orientation = pose.Orientation;
+	ovrVector3f position = pose.Position;
+	Quatf o = orientation;
 	float yaw, pitch, roll;
-    o.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
-
-	char json[300] = { 0, };
-	sprintf(json, "{\"quat\":{\"x\":%1.7f,\"y\":%1.7f,\"z\":%1.7f,\"w\":%1.7f},\"euler\":{\"y\":%1.7f,\"p\":%1.7f,\"r\":%1.7f}}", orientation.x, orientation.y, orientation.z, orientation.w, yaw, pitch, roll);
+	o.GetEulerAngles<OVR::Axis_Y, OVR::Axis_X, OVR::Axis_Z>(&yaw, &pitch, &roll);
+	
+	char json[1000] = { 0, };
+	sprintf(json, "{" );
+	sprintf(json+strlen(json), "\"quat\":{\"x\":%1.7f,\"y\":%1.7f,\"z\":%1.7f,\"w\":%1.7f}", orientation.x, orientation.y, orientation.z, orientation.w );
+	sprintf(json+strlen(json), "," );
+	sprintf(json+strlen(json), "\"euler\":{\"y\":%1.7f,\"p\":%1.7f,\"r\":%1.7f}", yaw, pitch, roll );
+	sprintf(json+strlen(json), "," );
+	sprintf(json+strlen(json), "\"position\":{\"x\":%1.7f,\"y\":%1.7f,\"z\":%1.7f}", position.x, position.y, position.z );
+	sprintf(json+strlen(json), "}" );
+	
     ovrHmd_EndFrameTiming(Hmd);
 	response = MHD_create_response_from_data(strlen(json), (void*) &json, MHD_NO, MHD_YES);
 	MHD_add_response_header (response, "Content-Type", "application/json");
