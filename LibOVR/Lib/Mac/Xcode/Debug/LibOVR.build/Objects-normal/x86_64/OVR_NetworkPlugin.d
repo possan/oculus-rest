@@ -1,0 +1,21 @@
+dependencies: \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/OVR_NetworkPlugin.cpp \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/OVR_NetworkPlugin.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/OVR_Session.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/OVR_Socket.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_Types.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_Compiler.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_Timer.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_Allocator.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_RefCount.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_String.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_UTF8Util.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_Atomic.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_Std.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_Alg.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/OVR_PacketizedTCPSocket.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/OVR_Unix_Socket.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/OVR_BitStream.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_Array.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_ContainerAllocator.h \
+  /Users/michael/Source/oculus-rest/LibOVR/Src/Net/../Kernel/OVR_Threads.h
